@@ -1,0 +1,84 @@
+name: Deploy PeerTube
+
+on:
+  push:
+    branches:
+      - deployment
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy PeerTube
+    env:
+      TS_MACHINE: ${{ secrets.TS_MACHINE }}
+      TS_USER: ${{ secrets.TS_USER }}
+
+    steps:
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+        with:
+          ref: deployment
+          sparse-checkout: |
+            containers
+            support/docker/production/.env
+            support/nginx/peertube
+
+      - name: Prepare environment
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          PEERTUBE_WEBSERVER_HOSTNAME: ${{ secrets.PEERTUBE_WEBSERVER_HOSTNAME }}
+          PEERTUBE_SECRET: ${{ secrets.PEERTUBE_SECRET }}
+          PEERTUBE_ADMIN_EMAIL: ${{ secrets.PEERTUBE_ADMIN_EMAIL }}
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+        run: |
+          CMDLINE="mkdir -p --"
+          CMDLINE+=" ~/docker-volume/nginx"
+          CMDLINE+=" ~/docker-volume/data"
+          CMDLINE+=" ~/docker-volume/certbot/conf"
+          CMDLINE+=" ~/docker-volume/config"
+          CMDLINE+=" ~/docker-volume/db"
+          CMDLINE+=" ~/docker-volume/redis"
+          CMDLINE+=" ~/docker-volume/opendkim/keys"
+          CMDLINE+=" ~/.config/containers/systemd"
+          ssh -o StrictHostKeyChecking=no $TS_USER@$TS_MACHINE "$CMDLINE"
+
+          sed \
+            -e "s/<MY POSTGRES USERNAME>/$POSTGRES_USER/g" \
+            -e "s/<MY POSTGRES PASSWORD>/$POSTGRES_PASSWORD/g" \
+            -e "s/<MY DOMAIN>/$PEERTUBE_WEBSERVER_HOSTNAME/g" \
+            -e "s/<MY PEERTUBE SECRET>/$PEERTUBE_SECRET/g" \
+            -e "s/<MY EMAIL ADDRESS>/$PEERTUBE_ADMIN_EMAIL/g" \
+            -e "s/\$POSTGRES_USER/$POSTGRES_USER/g" \
+            -e "s/\$POSTGRES_PASSWORD/$POSTGRES_PASSWORD/g" \
+            support/docker/production/.env \
+            > containers/systemd/.env
+          sed -i \
+            -e "s/#PEERTUBE_WEBSERVER_HTTPS=false/PEERTUBE_WEBSERVER_HTTPS=true/g" \
+            -e "s/#PEERTUBE_WEBSERVER_PORT=9000/PEERTUBE_WEBSERVER_PORT=443/g" \
+            -e "s/PEERTUBE_DB_HOSTNAME=postgres/PEERTUBE_DB_HOSTNAME=localhost/g" \
+            -e "s/PEERTUBE_SMTP_HOSTNAME=postfix/PEERTUBE_SMTP_HOSTNAME=localhost/g" \
+            containers/systemd/.env
+
+          echo "PEERTUBE_REDIS_HOSTNAME=localhost" >> containers/systemd/.env
+          echo "TS_AUTHKEY=$TS_AUTHKEY" >> containers/systemd/.env
+
+      - name: Install files to host
+        run: |
+          ssh -o StrictHostKeyChecking=no $TS_USER@$TS_MACHINE \
+            "systemctl --user is-active peertube-pod.service && systemctl --user stop peertube-pod.service || true"
+
+          scp -o StrictHostKeyChecking=no support/nginx/peertube $TS_USER@$TS_MACHINE:~/docker-volume/nginx/peertube
+          scp -o StrictHostKeyChecking=no -r containers/systemd/. $TS_USER@$TS_MACHINE:~/.config/containers/systemd/
+          ssh -o StrictHostKeyChecking=no $TS_USER@$TS_MACHINE "systemctl --user daemon-reload"
+
+      - name: Start PeerTube
+        run: |
+          ssh -o StrictHostKeyChecking=no $TS_USER@$TS_MACHINE "systemctl --user start peertube-pod.service"
