@@ -1,0 +1,8 @@
+[Unit]
+Description=ActivityPub-federated video streaming platform
+
+[Pod]
+PodName=peertube
+
+[Install]
+WantedBy=multi-user.target default.target

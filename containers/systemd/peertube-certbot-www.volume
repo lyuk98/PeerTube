@@ -1,0 +1,5 @@
+[Unit]
+PartOf=peertube-pod.service
+
+[Volume]
+VolumeName=peertube-certbot-www

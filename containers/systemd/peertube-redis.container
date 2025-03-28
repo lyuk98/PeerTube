@@ -1,0 +1,14 @@
+[Unit]
+PartOf=peertube-pod.service
+
+[Container]
+ContainerName=peertube-redis
+Image=docker.io/redis:6-alpine
+Pod=peertube.pod
+
+EnvironmentFile=.env
+
+Volume=%h/docker-volume/redis:/data
+
+[Service]
+Restart=always

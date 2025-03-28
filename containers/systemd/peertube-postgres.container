@@ -1,0 +1,14 @@
+[Unit]
+PartOf=peertube-pod.service
+
+[Container]
+ContainerName=peertube-postgres
+Image=docker.io/postgres:13-alpine
+Pod=peertube.pod
+
+EnvironmentFile=.env
+
+Volume=%h/docker-volume/db:/var/lib/postgresql/data
+
+[Service]
+Restart=always

@@ -1,0 +1,14 @@
+[Unit]
+PartOf=peertube-pod.service
+
+[Container]
+ContainerName=peertube-postfix
+Image=docker.io/mwader/postfix-relay
+Pod=peertube.pod
+
+EnvironmentFile=.env
+
+Volume=%h/docker-volume/opendkim/keys:/etc/opendkim/keys
+
+[Service]
+Restart=always
