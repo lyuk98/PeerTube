@@ -47,6 +47,7 @@ jobs:
           CMDLINE+=" ~/docker-volume/db"
           CMDLINE+=" ~/docker-volume/redis"
           CMDLINE+=" ~/docker-volume/opendkim/keys"
+          CMDLINE+=" ~/tailscaled/state"
           CMDLINE+=" ~/.config/containers/systemd"
           ssh -o StrictHostKeyChecking=no $TS_USER@$TS_MACHINE "$CMDLINE"
 
