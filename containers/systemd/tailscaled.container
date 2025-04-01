@@ -6,15 +6,11 @@ ContainerName=tailscaled
 Image=docker.io/tailscale/tailscale:stable
 Pod=peertube.pod
 
-AddCapability=CAP_NET_ADMIN
-
 EnvironmentFile=.env
 Environment=TS_HOSTNAME=peertube
 Environment=TS_STATE_DIR=/var/lib/tailscale
 Environment=TS_EXTRA_ARGS=--advertise-tags=tag:peertube
-Environment=TS_USERSPACE=false
 
-Volume=/dev/net/tun:/dev/net/tun
 Volume=%h/tailscaled/state:/var/lib/tailscale
 
 [Service]
