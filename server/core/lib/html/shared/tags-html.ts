@@ -9,6 +9,7 @@ import { Hooks } from '../../plugins/hooks.js'
 
 export type TagsOptions = {
   forbidIndexation: boolean
+  embedIndexation: boolean
 
   url?: string
 
@@ -30,7 +31,7 @@ export type TagsOptions = {
   escapedTitle?: string
   escapedTruncatedDescription?: string
 
-  relMe?: string
+  relMe?: string[]
 
   image?: {
     url: string
@@ -59,7 +60,6 @@ type HookContext = {
 }
 
 export class TagsHtml {
-
   static addTitleTag (htmlStringPage: string, title?: string) {
     let text = title || CONFIG.INSTANCE.NAME
     if (title) text += ` - ${CONFIG.INSTANCE.NAME}`
@@ -81,7 +81,7 @@ export class TagsHtml {
 
     const html = parse(content)
 
-    return html.querySelector('a[rel=me]')?.getAttribute('href') || undefined
+    return html.querySelectorAll('a[rel=me]').map(e => e.getAttribute('href'))
   }
 
   // ---------------------------------------------------------------------------
@@ -94,7 +94,7 @@ export class TagsHtml {
     }
     const schemaTags = await this.generateSchemaTagsOptions(tagsValues, context)
 
-    const { url, escapedTitle, oembedUrl, forbidIndexation, relMe, rssFeeds } = tagsValues
+    const { url, escapedTitle, oembedUrl, forbidIndexation, embedIndexation, relMe, rssFeeds } = tagsValues
 
     const oembedLinkTags: { type: string, href: string, escapedTitle: string }[] = []
 
@@ -118,7 +118,9 @@ export class TagsHtml {
     // OEmbed
     for (const oembedLinkTag of oembedLinkTags) {
       // eslint-disable-next-line max-len
-      tagsStr += `<link rel="alternate" type="${oembedLinkTag.type}" href="${oembedLinkTag.href}" title="${escapeAttribute(oembedLinkTag.escapedTitle)}" />`
+      tagsStr += `<link rel="alternate" type="${oembedLinkTag.type}" href="${oembedLinkTag.href}" title="${
+        escapeAttribute(oembedLinkTag.escapedTitle)
+      }" />`
     }
 
     // Schema.org
@@ -126,17 +128,18 @@ export class TagsHtml {
       tagsStr += `<script type="application/ld+json">${JSON.stringify(schemaTags)}</script>`
     }
 
-    if (relMe) {
-      tagsStr += `<link href="${escapeAttribute(relMe)}" rel="me">`
-    }
-
-    // SEO, use origin URL
-    if (forbidIndexation !== true && url) {
-      tagsStr += `<link rel="canonical" href="${url}" />`
+    if (Array.isArray(relMe)) {
+      for (const relMeLink of relMe) {
+        tagsStr += `<link href="${escapeAttribute(relMeLink)}" rel="me">`
+      }
     }
 
     if (forbidIndexation === true) {
       tagsStr += `<meta name="robots" content="noindex" />`
+    } else if (embedIndexation) {
+      tagsStr += `<meta name="robots" content="noindex, indexifembedded" />`
+    } else if (url) { // SEO, use origin URL
+      tagsStr += `<link rel="canonical" href="${url}" />`
     }
 
     for (const rssLink of (rssFeeds || [])) {

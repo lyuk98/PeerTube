@@ -1,13 +1,44 @@
 # Changelog
 
+## v7.1.1
+
+### SECURITY
+
+  * This version fixes important vulnerabilities, that will be detailed on Tuesday, April 15
+
+### Bug fixes
+
+  * Fix playlist page margins
+  * Fix danger button border
+  * Fix unsubscribe button label for channels
+  * Fix remote subscribe on iOS
+  * Add Podcast feed to subscribe button
+  * Always display technical information tab in *About* page
+  * Fix menu button auto font-size to prevent overflow in some locales
+  * Correctly inject multiple `rel="me"` links with supported markdown fields
+  * Fix adding studio watermark with audio/video split HLS file
+  * Reset video state on studio failure
+  * Fix updating a user in administration
+  * Fix error when getting a S3 object with some S3 providers
+  * Specify charset when uploading caption files in S3
+  * Fix theme color parsing with some web browsers
+  * Improve channel description in custom markup miniature
+  * Ensure ffmpeg process is killed if download is aborted
+  * Correctly reload playlist on playlist change in watch page
+  * Use `indexifembedded` in embeds instead of `noindex`
+  * Fix extra space on links of remote comments
+  * Don't convert webp images to jpeg
+
+
 ## v7.1.0
 
 ### IMPORTANT NOTES
 
- * Remove NodeJS 18 support. Please upgrade to NodeJS 20 before upgrading PeerTube
+ * Remove NodeJS 18 support. Please upgrade to NodeJS 20 (>= 20.9) before upgrading PeerTube
  * Due to a bug in the remote video thumbnail update, we recommend running the [prune storage](https://docs.joinpeertube.org/maintain/tools#prune-filesystem-object-storage) script to clean up the filesystem
  * Let's encrypt is removing [OCSP support in 2025](https://letsencrypt.org/2024/12/05/ending-ocsp/), so remove SSL stapling from your nginx configuration: https://github.com/Chocobozzz/PeerTube/commit/0abaaa8ccbce19deb6fcd09c8bf00d4cf4248505
  * Safari desktop versions < 14 are not supported anymore
+ * If you are using object storage, you will need to create the captions bucket or configure PeerTube to use an existing one [in the configuration file](https://github.com/Chocobozzz/PeerTube/blob/develop/config/production.yaml.example#L262) or using environment variables if you use Docker (`PEERTUBE_OBJECT_STORAGE_CAPTIONS_BUCKET_NAME`, `PEERTUBE_OBJECT_STORAGE_CAPTIONS_PREFIX`, `PEERTUBE_OBJECT_STORAGE_CAPTIONS_BASE_URL`)
 
 ### Plugins/Themes/Embed API
 
@@ -53,7 +84,7 @@
 
  * :tada: Redesign *About Platform*, *About PeerTube* and *About Network* pages :tada:
  * Highlight author host in video miniature using a new dropdown component that explains where the content is coming from
- * Add ability to put video captions in object storage
+ * Add ability to put video captions in object storage. Use the [CLI](https://docs.joinpeertube.org/maintain/tools#move-video-files-from-filesystem-to-object-storage) after the upgrade to move existing captions to object storage
  * Add ability for [Mastodon to verify](https://joinmastodon.org/verification) PeerTube links
  * Enable viewer protocol V2 for better [concurrent viewer scalability](https://joinpeertube.org/news/stress-test-2023)
  * Add ability for admins to set the default player auto play behaviour [#6167](https://github.com/Chocobozzz/PeerTube/pull/6788)
