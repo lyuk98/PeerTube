@@ -1,8 +1,11 @@
-import { forceNumber } from '@peertube/peertube-core-utils'
-import { HttpStatusCode, ServerErrorCode, UserRight, UserRole } from '@peertube/peertube-models'
+import { arrayify, forceNumber } from '@peertube/peertube-core-utils'
+import { HttpStatusCode, ServerErrorCode, UserRole, UserUpdateMe } from '@peertube/peertube-models'
+import { isStringArray } from '@server/helpers/custom-validators/search.js'
+import { Hooks } from '@server/lib/plugins/hooks.js'
+import { MUser } from '@server/types/models/user/user.js'
 import express from 'express'
 import { body, param, query } from 'express-validator'
-import { exists, isBooleanValid, isIdValid, toBooleanOrNull, toIntOrNull } from '../../../helpers/custom-validators/misc.js'
+import { exists, isIdValid, toBooleanOrNull, toIntOrNull } from '../../../helpers/custom-validators/misc.js'
 import { isThemeNameValid } from '../../../helpers/custom-validators/plugins.js'
 import {
   isUserAdminFlagsValid,
@@ -32,15 +35,14 @@ import { ActorModel } from '../../../models/actor/actor.js'
 import {
   areValidationErrors,
   checkEmailDoesNotAlreadyExist,
-  checkUserCanManageAccount,
   checkUserEmailExistPermissive,
   checkUserIdExist,
   checkUsernameOrEmailDoNotAlreadyExist,
-  doesVideoChannelIdExist,
+  doesChannelIdExist,
   doesVideoExist,
   isValidVideoIdParam
 } from '../shared/index.js'
-import { Hooks } from '@server/lib/plugins/hooks.js'
+import { isNSFWFlagsValid } from '@server/helpers/custom-validators/videos.js'
 
 export const usersListValidator = [
   query('blocked')
@@ -127,11 +129,13 @@ export const usersRemoveValidator = [
       return res.fail({ message: 'Cannot remove the root user' })
     }
 
+    if (!checkUserCanModerate(user, res)) return
+
     return next()
   }
 ]
 
-export const usersBlockingValidator = [
+export const usersBlockToggleValidator = [
   param('id')
     .custom(isIdValid),
   body('reason')
@@ -146,6 +150,8 @@ export const usersBlockingValidator = [
     if (user.username === 'root') {
       return res.fail({ message: 'Cannot block the root user' })
     }
+
+    if (!checkUserCanModerate(user, res)) return
 
     return next()
   }
@@ -200,6 +206,8 @@ export const usersUpdateValidator = [
       return res.fail({ message: 'Cannot change root role.' })
     }
 
+    if (!checkUserCanModerate(user, res)) return
+
     if (req.body.email && req.body.email !== user.email && !await checkEmailDoesNotAlreadyExist(req.body.email, res)) return
 
     return next()
@@ -225,9 +233,23 @@ export const usersUpdateMeValidator = [
   body('email')
     .optional()
     .isEmail(),
+
   body('nsfwPolicy')
     .optional()
     .custom(isUserNSFWPolicyValid),
+  body('nsfwFlagsDisplayed')
+    .optional()
+    .custom(isNSFWFlagsValid),
+  body('nsfwFlagsHidden')
+    .optional()
+    .custom(isNSFWFlagsValid),
+  body('nsfwFlagsWarned')
+    .optional()
+    .custom(isNSFWFlagsValid),
+  body('nsfwFlagsBlurred')
+    .optional()
+    .custom(isNSFWFlagsValid),
+
   body('autoPlayVideo')
     .optional()
     .custom(isUserAutoPlayVideoValid),
@@ -261,16 +283,32 @@ export const usersUpdateMeValidator = [
   async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const user = res.locals.oauth.token.User
 
-    if (req.body.password || req.body.email) {
+    const body = req.body as UserUpdateMe
+
+    if (
+      ((body.nsfwFlagsBlurred || 0) & (body.nsfwFlagsWarned || 0)) !== 0 ||
+      ((body.nsfwFlagsBlurred || 0) & (body.nsfwFlagsDisplayed || 0)) !== 0 ||
+      ((body.nsfwFlagsBlurred || 0) & (body.nsfwFlagsHidden || 0)) !== 0 ||
+      ((body.nsfwFlagsDisplayed || 0) & (body.nsfwFlagsHidden || 0)) !== 0 ||
+      ((body.nsfwFlagsDisplayed || 0) & (body.nsfwFlagsWarned || 0)) !== 0 ||
+      ((body.nsfwFlagsHidden || 0) & (body.nsfwFlagsWarned || 0)) !== 0
+    ) {
+      return res.fail({
+        status: HttpStatusCode.BAD_REQUEST_400,
+        message: 'Cannot use same flags in nsfwFlagsDisplayed, nsfwFlagsHidden, nsfwFlagsBlurred and nsfwFlagsWarned at the same time'
+      })
+    }
+
+    if (body.password || body.email) {
       if (user.pluginAuth !== null) {
         return res.fail({ message: 'You cannot update your email or password that is associated with an external auth system.' })
       }
 
-      if (!req.body.currentPassword) {
+      if (!body.currentPassword) {
         return res.fail({ message: 'currentPassword parameter is missing' })
       }
 
-      if (await user.isPasswordMatch(req.body.currentPassword) !== true) {
+      if (await user.isPasswordMatch(body.currentPassword) !== true) {
         return res.fail({
           status: HttpStatusCode.UNAUTHORIZED_401,
           message: 'currentPassword is invalid.',
@@ -281,7 +319,7 @@ export const usersUpdateMeValidator = [
 
     if (areValidationErrors(req, res, { omitBodyLog: true })) return
 
-    if (req.body.email && req.body.email !== user.email && !await checkEmailDoesNotAlreadyExist(req.body.email, res)) return
+    if (body.email && body.email !== user.email && !await checkEmailDoesNotAlreadyExist(body.email, res)) return
 
     return next()
   }
@@ -314,20 +352,20 @@ export const usersVideoRatingValidator = [
 ]
 
 export const usersVideosValidator = [
-  query('isLive')
-    .optional()
-    .customSanitizer(toBooleanOrNull)
-    .custom(isBooleanValid).withMessage('Should have a valid isLive boolean'),
-
   query('channelId')
     .optional()
     .customSanitizer(toIntOrNull)
     .custom(isIdValid),
 
+  query('channelNameOneOf')
+    .optional()
+    .customSanitizer(arrayify)
+    .custom(isStringArray).withMessage('Should have a valid channelNameOneOf array'),
+
   async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (areValidationErrors(req, res)) return
 
-    if (req.query.channelId && !await doesVideoChannelIdExist(req.query.channelId, res)) return
+    if (req.query.channelId && !await doesChannelIdExist({ id: req.query.channelId, checkManage: true, checkIsLocal: true, res })) return
 
     return next()
   }
@@ -430,38 +468,20 @@ export const userAutocompleteValidator = [
     .not().isEmpty()
 ]
 
-export const ensureAuthUserOwnsAccountValidator = [
-  (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const user = res.locals.oauth.token.User
+// ---------------------------------------------------------------------------
+// Private
+// ---------------------------------------------------------------------------
 
-    if (!checkUserCanManageAccount({ user, account: res.locals.account, specialRight: null, res })) return
+function checkUserCanModerate (onUser: MUser, res: express.Response) {
+  const authUser = res.locals.oauth.token.User
 
-    return next()
-  }
-]
+  if (authUser.role === UserRole.ADMINISTRATOR) return true
+  if (authUser.role === UserRole.MODERATOR && onUser.role === UserRole.USER) return true
 
-export const ensureCanManageChannelOrAccount = [
-  (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const user = res.locals.oauth.token.user
-    const account = res.locals.videoChannel?.Account ?? res.locals.account
+  res.fail({
+    status: HttpStatusCode.FORBIDDEN_403,
+    message: 'Users can only be managed by moderators or admins.'
+  })
 
-    if (!checkUserCanManageAccount({ account, user, res, specialRight: UserRight.MANAGE_ANY_VIDEO_CHANNEL })) return
-
-    return next()
-  }
-]
-
-export const ensureCanModerateUser = [
-  (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const authUser = res.locals.oauth.token.User
-    const onUser = res.locals.user
-
-    if (authUser.role === UserRole.ADMINISTRATOR) return next()
-    if (authUser.role === UserRole.MODERATOR && onUser.role === UserRole.USER) return next()
-
-    return res.fail({
-      status: HttpStatusCode.FORBIDDEN_403,
-      message: 'Users can only be managed by moderators or admins.'
-    })
-  }
-]
+  return false
+}

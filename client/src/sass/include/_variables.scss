@@ -2,6 +2,7 @@
 @use 'sass:color';
 @use 'sass:map';
 
+$medium-view: 1000px;
 $small-view: 800px;
 $mobile-view: 500px;
 
@@ -21,8 +22,9 @@ $white: #fff;
 $button-font-size: 1rem;
 
 $header-height: 94px;
-$header-height-small-view: 74px;
-$header-height-mobile-view: 124px;
+$header-height-small-view: 78px;
+$header-height-mobile-view: 128px;
+$header-height-mobile-view-without-search: 80px;
 $header-mobile-msg-height: 48px;
 
 $menu-width: 248px;
@@ -61,6 +63,8 @@ $video-thumbnail-small-width: 125px;
 // ---------------------------------------------------------------------------
 
 $instance-img-radius: 31%;
+$channel-avatar-radius: 5px;
+$account-avatar-radius: 50%;
 
 // ---------------------------------------------------------------------------
 
@@ -76,31 +80,33 @@ $form-input-font-size: 16px;
 
 $video-watch-info-margin-left: 44px;
 
-$primeng-breakpoint: 960px;
-
 // ---------------------------------------------------------------------------
 // Theme variables with key check using pvar() function
 // ---------------------------------------------------------------------------
 
 $variables: (
   --x-margin-content: var(--x-margin-content),
-  --main-col-width: var(--main-col-width),
+  --tmp-header-height: var(--tmp-header-height),
   --header-height: var(--header-height),
 
   --fg: var(--fg),
   --bg: var(--bg),
 
   --red: var(--red),
-  --on-red: var(--on-red),
-
   --green: var(--green),
 
   --input-fg: var(--input-fg),
+
   --input-bg: var(--input-bg),
+  --input-bg-550: var(--input-bg-550),
+  --input-bg-600: var(--input-bg-600),
+  --input-bg-in-secondary: var(--input-bg-in-secondary),
+
+  --input-danger-fg: var(--input-danger-fg),
+  --input-danger-bg: var(--input-danger-bg),
 
   --input-placeholder: var(--input-placeholder),
   --input-border-color: var(--input-border-color),
-  --input-bg-in-secondary: var(--input-bg-in-secondary),
   --input-border-radius: var(--input-border-radius),
 
   --input-check-active-fg: var(--input-check-active-fg),
@@ -109,6 +115,8 @@ $variables: (
   --input-x-padding: var(--input-x-padding),
   --input-y-padding: var(--input-y-padding),
 
+  --textarea-x-padding: var(--textarea-x-padding),
+  --textarea-y-padding: var(--textarea-y-padding),
   --textarea-fg: var(--textarea-fg),
   --textarea-bg: var(--textarea-bg),
 
@@ -166,6 +174,9 @@ $variables: (
   --menu-bg-250: var(--menu-bg-250),
   --menu-bg-200: var(--menu-bg-200),
 
+  --menu-margin-left: var(--menu-margin-left),
+  --menu-width: var(--menu-width),
+
   --on-primary: var(--on-primary),
   --on-primary-700: var(--on-primary-700),
   --on-primary-650: var(--on-primary-650),
@@ -204,8 +215,6 @@ $variables: (
   --alert-primary-fg: var(--alert-primary-fg),
   --alert-primary-bg: var(--alert-primary-bg),
   --alert-primary-border-color: var(--alert-primary-border-color),
-
-  --menu-margin-left: var(--menu-margin-left),
 
   --embed-fg: var(--embed-fg),
   --embed-big-play-bg: var(--embed-big-play-bg),

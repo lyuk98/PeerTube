@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core'
 import { RestExtractor, RestPagination, RestService } from '@app/core'
 import { AdvancedInputFilter } from '@app/shared/shared-forms/advanced-input-filter.component'
 import { Video } from '@app/shared/shared-main/video/video.model'
-import { CommonVideoParams, VideoService } from '@app/shared/shared-main/video/video.service'
+import { VideoListParams, VideoService } from '@app/shared/shared-main/video/video.service'
 import { getAllPrivacies, omit } from '@peertube/peertube-core-utils'
 import { ResultList, VideoInclude, VideoPrivacy } from '@peertube/peertube-models'
 import { Observable } from 'rxjs'
@@ -17,12 +17,12 @@ export class VideoAdminService {
   private restService = inject(RestService)
 
   getAdminVideos (
-    options: CommonVideoParams & { pagination: RestPagination, search?: string }
+    options: VideoListParams & { pagination: RestPagination, search?: string }
   ): Observable<ResultList<Video>> {
     const { pagination, search } = options
 
     let params = new HttpParams()
-    params = this.videoService.buildCommonVideosParams({ params, ...omit(options, [ 'search', 'pagination' ]) })
+    params = this.videoService.buildVideoListParams({ params, ...omit(options, [ 'search', 'pagination' ]) })
 
     params = params.set('start', pagination.start.toString())
       .set('count', pagination.count.toString())
@@ -39,6 +39,16 @@ export class VideoAdminService {
 
   buildAdminInputFilter (): AdvancedInputFilter[] {
     return [
+      {
+        title: $localize`Moderation`,
+        children: [
+          {
+            value: 'nsfw:true',
+            label: $localize`Sensitive videos`
+          }
+        ]
+      },
+
       {
         title: $localize`Video type`,
         children: [
@@ -145,6 +155,10 @@ export class VideoAdminService {
       autoTagOneOf: {
         prefix: 'autoTag:',
         multiple: true
+      },
+      nsfw: {
+        prefix: 'nsfw:',
+        isBoolean: true
       }
     })
 

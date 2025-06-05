@@ -1,6 +1,6 @@
 import { forceNumber } from '@peertube/peertube-core-utils'
 import { HttpStatusCode, UserRightType } from '@peertube/peertube-models'
-import { getUserByEmailPermissive } from '@server/lib/user.js'
+import { getByEmailPermissive } from '@server/lib/user.js'
 import { ActorModel } from '@server/models/actor/actor.js'
 import { UserModel } from '@server/models/user/user.js'
 import { MAccountId, MUserAccountId, MUserDefault } from '@server/types/models/index.js'
@@ -12,11 +12,27 @@ export function checkUserIdExist (idArg: number | string, res: express.Response,
 }
 
 export function checkUserEmailExistPermissive (email: string, res: express.Response, abortResponse = true) {
-  return checkUserExist(async () => {
-    const users = await UserModel.loadByEmailCaseInsensitive(email)
+  return checkUserExist(
+    async () => {
+      const users = await UserModel.loadByEmailCaseInsensitive(email)
 
-    return getUserByEmailPermissive(users, email)
-  }, res, abortResponse)
+      return getByEmailPermissive(users, email)
+    },
+    res,
+    abortResponse
+  )
+}
+
+export function checkUserPendingEmailExistPermissive (email: string, res: express.Response, abortResponse = true) {
+  return checkUserExist(
+    async () => {
+      const users = await UserModel.loadByPendingEmailCaseInsensitive(email)
+
+      return getByEmailPermissive(users, email)
+    },
+    res,
+    abortResponse
+  )
 }
 
 export async function checkUsernameOrEmailDoNotAlreadyExist (username: string, email: string, res: express.Response) {
@@ -101,4 +117,19 @@ export function checkUserCanManageAccount (options: {
   })
 
   return false
+}
+
+export async function doesUserFeedTokenCorrespond (id: number, token: string, res: express.Response) {
+  const user = await UserModel.loadByIdWithChannels(forceNumber(id))
+
+  if (token !== user.feedToken) {
+    res.fail({
+      status: HttpStatusCode.FORBIDDEN_403,
+      message: 'User and token mismatch'
+    })
+    return false
+  }
+
+  res.locals.user = user
+  return true
 }

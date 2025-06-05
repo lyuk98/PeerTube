@@ -1,6 +1,6 @@
 import { AuthUser } from '@app/core'
 import { User } from '@app/core/users/user.model'
-import { durationToString, getAbsoluteAPIUrl, getAbsoluteEmbedUrl } from '@app/helpers'
+import { durationToString, getAPIUrl, getOriginUrl } from '@app/helpers'
 import { Actor } from '@app/shared/shared-main/account/actor.model'
 import { buildVideoWatchPath, getAllFiles, peertubeTranslate } from '@peertube/peertube-core-utils'
 import {
@@ -19,6 +19,7 @@ import {
   VideoStreamingPlaylist,
   VideoStreamingPlaylistType
 } from '@peertube/peertube-models'
+import { isVideoNSFWBlurForUser, isVideoNSFWHiddenForUser, isVideoNSFWWarnedForUser } from '@root-helpers/video'
 
 export class Video implements VideoServerModel {
   byVideoChannel: string
@@ -68,7 +69,10 @@ export class Video implements VideoServerModel {
 
   likes: number
   dislikes: number
+
   nsfw: boolean
+  nsfwFlags: number
+  nsfwSummary: string
 
   originInstanceUrl: string
   originInstanceHost: string
@@ -116,17 +120,21 @@ export class Video implements VideoServerModel {
 
   automaticTags?: string[]
 
+  comments: number
+
   static buildWatchUrl (video: Partial<Pick<Video, 'uuid' | 'shortUUID'>>) {
     return buildVideoWatchPath({ shortUUID: video.shortUUID || video.uuid })
   }
 
   static buildUpdateUrl (video: Partial<Pick<Video, 'uuid' | 'shortUUID'>>) {
-    return '/videos/update/' + (video.shortUUID || video.uuid)
+    return '/videos/manage/' + (video.shortUUID || video.uuid)
   }
 
-  constructor (hash: VideoServerModel, translations: { [ id: string ]: string } = {}) {
-    const absoluteAPIUrl = getAbsoluteAPIUrl()
+  static buildDurationLabel (video: Partial<Pick<Video, 'duration'>>) {
+    return durationToString(video.duration)
+  }
 
+  constructor (hash: VideoServerModel, translations: { [id: string]: string } = {}) {
     this.createdAt = new Date(hash.createdAt.toString())
     this.publishedAt = new Date(hash.publishedAt.toString())
     this.category = hash.category
@@ -142,7 +150,7 @@ export class Video implements VideoServerModel {
     this.isLive = hash.isLive
 
     this.duration = hash.duration
-    this.durationLabel = durationToString(hash.duration)
+    this.durationLabel = Video.buildDurationLabel(this)
 
     this.id = hash.id
     this.uuid = hash.uuid
@@ -153,16 +161,16 @@ export class Video implements VideoServerModel {
 
     this.thumbnailPath = hash.thumbnailPath
     this.thumbnailUrl = this.thumbnailPath
-      ? hash.thumbnailUrl || (absoluteAPIUrl + hash.thumbnailPath)
+      ? hash.thumbnailUrl || (getAPIUrl() + hash.thumbnailPath)
       : null
 
     this.previewPath = hash.previewPath
     this.previewUrl = this.previewPath
-      ? hash.previewUrl || (absoluteAPIUrl + hash.previewPath)
+      ? hash.previewUrl || (getAPIUrl() + hash.previewPath)
       : null
 
     this.embedPath = hash.embedPath
-    this.embedUrl = hash.embedUrl || (getAbsoluteEmbedUrl() + hash.embedPath)
+    this.embedUrl = hash.embedUrl || (getOriginUrl() + hash.embedPath)
 
     this.url = hash.url
 
@@ -172,6 +180,8 @@ export class Video implements VideoServerModel {
     this.dislikes = hash.dislikes
 
     this.nsfw = hash.nsfw
+    this.nsfwFlags = hash.nsfwFlags
+    this.nsfwSummary = hash.nsfwSummary
 
     this.account = hash.account
     this.channel = hash.channel
@@ -209,18 +219,27 @@ export class Video implements VideoServerModel {
     this.aspectRatio = hash.aspectRatio
 
     this.automaticTags = hash.automaticTags
+
+    this.comments = hash.comments
   }
 
-  isVideoNSFWForUser (user: User, serverConfig: HTMLServerConfig) {
-    // Video is not NSFW, skip
-    if (this.nsfw === false) return false
-
-    // Return user setting if logged in
-    if (user) return user.nsfwPolicy !== 'display'
-
-    // Return default instance config
-    return serverConfig.instance.defaultNSFWPolicy !== 'display'
+  isNSFWWarnedForUser (user: User, serverConfig: HTMLServerConfig) {
+    return isVideoNSFWWarnedForUser(this, serverConfig, user)
   }
+
+  isNSFWBlurForUser (user: User, serverConfig: HTMLServerConfig) {
+    return isVideoNSFWBlurForUser(this, serverConfig, user)
+  }
+
+  isNSFWHiddenForUser (user: User, serverConfig: HTMLServerConfig) {
+    return isVideoNSFWHiddenForUser(this, serverConfig, user)
+  }
+
+  isNSFWHiddenOrWarned (user: User, serverConfig: HTMLServerConfig) {
+    return this.isNSFWHiddenForUser(user, serverConfig) || this.isNSFWWarnedForUser(user, serverConfig)
+  }
+
+  // ---------------------------------------------------------------------------
 
   isRemovableBy (user: AuthUser) {
     return user && this.isLocal === true && (this.account.name === user.username || user.hasRight(UserRight.REMOVE_ANY_VIDEO))
@@ -277,10 +296,10 @@ export class Video implements VideoServerModel {
 
   canRunTranscoding (user: AuthUser) {
     return this.isLocal &&
-    !this.isLive &&
-    user?.hasRight(UserRight.RUN_VIDEO_TRANSCODING) &&
-    this.state?.id &&
-    !this.transcodingAndTranscriptionIncompatibleStates().has(this.state.id)
+      !this.isLive &&
+      user?.hasRight(UserRight.RUN_VIDEO_TRANSCODING) &&
+      this.state?.id &&
+      !this.transcodingAndTranscriptionIncompatibleStates().has(this.state.id)
   }
 
   canGenerateTranscription (user: AuthUser, transcriptionEnabled: boolean) {
@@ -320,7 +339,7 @@ export class Video implements VideoServerModel {
     return user && this.isLocal === false && user.hasRight(UserRight.MANAGE_VIDEOS_REDUNDANCIES)
   }
 
-  canAccessPasswordProtectedVideoWithoutPassword (user: AuthUser) {
+  canBypassPassword (user: AuthUser) {
     return this.privacy.id === VideoPrivacy.PASSWORD_PROTECTED &&
       user &&
       this.isLocal === true &&

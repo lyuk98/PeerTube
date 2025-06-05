@@ -2,15 +2,18 @@ import { forceNumber, hasUserRight, USER_ROLE_LABELS } from '@peertube/peertube-
 import {
   AbuseState,
   MyUser,
+  NSFWFlag,
   User,
   UserAdminFlag,
   UserRightType,
+  UserRole,
   VideoPlaylistType,
   type NSFWPolicyType,
   type UserAdminFlagType,
-  type UserRoleType,
-  UserRole
+  type UserRoleType
 } from '@peertube/peertube-models'
+import { isNSFWFlagsValid } from '@server/helpers/custom-validators/videos.js'
+import { CONFIG } from '@server/initializers/config.js'
 import { TokensCache } from '@server/lib/auth/tokens-cache.js'
 import { LiveQuotaStore } from '@server/lib/live/index.js'
 import {
@@ -37,7 +40,8 @@ import {
   HasOne,
   Is,
   IsEmail,
-  IsUUID, Scopes,
+  IsUUID,
+  Scopes,
   Table,
   UpdatedAt
 } from 'sequelize-typescript'
@@ -74,8 +78,8 @@ import { VideoImportModel } from '../video/video-import.js'
 import { VideoLiveModel } from '../video/video-live.js'
 import { VideoPlaylistModel } from '../video/video-playlist.js'
 import { VideoModel } from '../video/video.js'
-import { UserNotificationSettingModel } from './user-notification-setting.js'
 import { UserExportModel } from './user-export.js'
+import { UserNotificationSettingModel } from './user-notification-setting.js'
 
 enum ScopeNames {
   FOR_ME_API = 'FOR_ME_API',
@@ -173,7 +177,7 @@ type WhereUserIdScopeOptions = { whereUserId?: '$userId' | '"UserModel"."id"' }
                   daily: false,
                   onlyMaxResolution: true
                 }) +
-              ')'
+                ')'
             ),
             'videoQuotaUsed'
           ],
@@ -185,7 +189,7 @@ type WhereUserIdScopeOptions = { whereUserId?: '$userId' | '"UserModel"."id"' }
                   daily: true,
                   onlyMaxResolution: true
                 }) +
-              ')'
+                ')'
             ),
             'videoQuotaUsedDaily'
           ]
@@ -205,7 +209,7 @@ type WhereUserIdScopeOptions = { whereUserId?: '$userId' | '"UserModel"."id"' }
                   daily: false,
                   onlyMaxResolution: false
                 }) +
-              ')'
+                ')'
             ),
             'totalVideoFileSize'
           ]
@@ -225,7 +229,7 @@ type WhereUserIdScopeOptions = { whereUserId?: '$userId' | '"UserModel"."id"' }
                 'INNER JOIN "videoChannel" ON "videoChannel"."id" = "video"."channelId" ' +
                 'INNER JOIN "account" ON "account"."id" = "videoChannel"."accountId" ' +
                 `WHERE "account"."userId" = ${options.whereUserId}` +
-              ')'
+                ')'
             ),
             'videosCount'
           ],
@@ -234,13 +238,13 @@ type WhereUserIdScopeOptions = { whereUserId?: '$userId' | '"UserModel"."id"' }
               '(' +
                 `SELECT concat_ws(':', "abuses", "acceptedAbuses") ` +
                 'FROM (' +
-                  'SELECT COUNT("abuse"."id") AS "abuses", ' +
-                        `COUNT("abuse"."id") FILTER (WHERE "abuse"."state" = ${AbuseState.ACCEPTED}) AS "acceptedAbuses" ` +
-                  'FROM "abuse" ' +
-                  'INNER JOIN "account" ON "account"."id" = "abuse"."flaggedAccountId" ' +
-                  `WHERE "account"."userId" = ${options.whereUserId}` +
+                'SELECT COUNT("abuse"."id") AS "abuses", ' +
+                `COUNT("abuse"."id") FILTER (WHERE "abuse"."state" = ${AbuseState.ACCEPTED}) AS "acceptedAbuses" ` +
+                'FROM "abuse" ' +
+                'INNER JOIN "account" ON "account"."id" = "abuse"."flaggedAccountId" ' +
+                `WHERE "account"."userId" = ${options.whereUserId}` +
                 ') t' +
-              ')'
+                ')'
             ),
             'abusesCount'
           ],
@@ -251,7 +255,7 @@ type WhereUserIdScopeOptions = { whereUserId?: '$userId' | '"UserModel"."id"' }
                 'FROM "abuse" ' +
                 'INNER JOIN "account" ON "account"."id" = "abuse"."reporterAccountId" ' +
                 `WHERE "account"."userId" = ${options.whereUserId}` +
-              ')'
+                ')'
             ),
             'abusesCreatedCount'
           ],
@@ -262,7 +266,7 @@ type WhereUserIdScopeOptions = { whereUserId?: '$userId' | '"UserModel"."id"' }
                 'FROM "videoComment" ' +
                 'INNER JOIN "account" ON "account"."id" = "videoComment"."accountId" ' +
                 `WHERE "account"."userId" = ${options.whereUserId}` +
-              ')'
+                ')'
             ),
             'videoCommentsCount'
           ]
@@ -285,7 +289,6 @@ type WhereUserIdScopeOptions = { whereUserId?: '$userId' | '"UserModel"."id"' }
   ]
 })
 export class UserModel extends SequelizeModel<UserModel> {
-
   @AllowNull(true)
   @Is('UserPassword', value => throwIfNotValid(value, isUserPasswordValid, 'user password', true))
   @Column
@@ -315,6 +318,30 @@ export class UserModel extends SequelizeModel<UserModel> {
   @Is('UserNSFWPolicy', value => throwIfNotValid(value, isUserNSFWPolicyValid, 'NSFW policy'))
   @Column(DataType.ENUM(...Object.values(NSFW_POLICY_TYPES)))
   nsfwPolicy: NSFWPolicyType
+
+  @AllowNull(false)
+  @Default(0)
+  @Is('UserNSFWFlagsDisplayed', value => throwIfNotValid(value, isNSFWFlagsValid, 'NSFW flags'))
+  @Column
+  nsfwFlagsDisplayed: number
+
+  @AllowNull(false)
+  @Default(0)
+  @Is('UserNSFWFlagsHidden', value => throwIfNotValid(value, isNSFWFlagsValid, 'NSFW flags'))
+  @Column
+  nsfwFlagsHidden: number
+
+  @AllowNull(false)
+  @Default(0)
+  @Is('nsfwFlagsBlurred', value => throwIfNotValid(value, isNSFWFlagsValid, 'NSFW flags'))
+  @Column
+  nsfwFlagsBlurred: number
+
+  @AllowNull(false)
+  @Default(0)
+  @Is('UserNSFWFlagsWarned', value => throwIfNotValid(value, isNSFWFlagsValid, 'NSFW flags'))
+  @Column
+  nsfwFlagsWarned: number
 
   @AllowNull(false)
   @Is('p2pEnabled', value => throwIfNotValid(value, isUserP2PEnabledValid, 'P2P enabled'))
@@ -554,8 +581,8 @@ export class UserModel extends SequelizeModel<UserModel> {
 
   static listWithRight (right: UserRightType): Promise<MUserDefault[]> {
     const roles = Object.keys(USER_ROLE_LABELS)
-                        .map(k => parseInt(k, 10) as UserRoleType)
-                        .filter(role => hasUserRight(role, right))
+      .map(k => parseInt(k, 10) as UserRoleType)
+      .filter(role => hasUserRight(role, right))
 
     const query = {
       where: {
@@ -669,6 +696,18 @@ export class UserModel extends SequelizeModel<UserModel> {
         fn('LOWER', col('email')),
         '=',
         email.toLowerCase()
+      )
+    }
+
+    return UserModel.findAll(query)
+  }
+
+  static loadByPendingEmailCaseInsensitive (pendingEmail: string): Promise<MUserDefault[]> {
+    const query = {
+      where: where(
+        fn('LOWER', col('pendingEmail')),
+        '=',
+        pendingEmail.toLowerCase()
       )
     }
 
@@ -863,8 +902,8 @@ export class UserModel extends SequelizeModel<UserModel> {
 
     return 'SELECT COALESCE(SUM("size"), 0) AS "total" ' +
       'FROM (' +
-        `SELECT ${sizeSelect} AS "size" FROM (${webVideoFiles} UNION ${hlsFiles}) t1 ` +
-        'GROUP BY "t1"."videoId"' +
+      `SELECT ${sizeSelect} AS "size" FROM (${webVideoFiles} UNION ${hlsFiles}) t1 ` +
+      'GROUP BY "t1"."videoId"' +
       ') t2'
   }
 
@@ -925,7 +964,7 @@ export class UserModel extends SequelizeModel<UserModel> {
     }
 
     return UserModel.findAll(query)
-                    .then(u => u.map(u => u.username))
+      .then(u => u.map(u => u.username))
   }
 
   hasRight (right: UserRightType) {
@@ -962,6 +1001,22 @@ export class UserModel extends SequelizeModel<UserModel> {
       emailVerified: this.emailVerified,
 
       nsfwPolicy: this.nsfwPolicy,
+
+      nsfwFlagsDisplayed: CONFIG.NSFW_FLAGS_SETTINGS.ENABLED
+        ? this.nsfwFlagsDisplayed
+        : NSFWFlag.NONE,
+
+      nsfwFlagsHidden: CONFIG.NSFW_FLAGS_SETTINGS.ENABLED
+        ? this.nsfwFlagsHidden
+        : NSFWFlag.NONE,
+
+      nsfwFlagsWarned: CONFIG.NSFW_FLAGS_SETTINGS.ENABLED
+        ? this.nsfwFlagsWarned
+        : NSFWFlag.NONE,
+
+      nsfwFlagsBlurred: CONFIG.NSFW_FLAGS_SETTINGS.ENABLED
+        ? this.nsfwFlagsBlurred
+        : NSFWFlag.NONE,
 
       p2pEnabled: this.p2pEnabled,
 
@@ -1037,13 +1092,13 @@ export class UserModel extends SequelizeModel<UserModel> {
 
     if (Array.isArray(this.Account.VideoChannels) === true) {
       json.videoChannels = this.Account.VideoChannels
-                               .map(c => c.toFormattedJSON())
-                               .sort((v1, v2) => {
-                                 if (v1.createdAt < v2.createdAt) return -1
-                                 if (v1.createdAt === v2.createdAt) return 0
+        .map(c => c.toFormattedJSON())
+        .sort((v1, v2) => {
+          if (v1.createdAt < v2.createdAt) return -1
+          if (v1.createdAt === v2.createdAt) return 0
 
-                                 return 1
-                               })
+          return 1
+        })
     }
 
     return json
@@ -1053,7 +1108,7 @@ export class UserModel extends SequelizeModel<UserModel> {
     const formatted = this.toFormattedJSON({ withAdminFlags: true })
 
     const specialPlaylists = this.Account.VideoPlaylists
-                                 .map(p => ({ id: p.id, name: p.name, type: p.type }))
+      .map(p => ({ id: p.id, name: p.name, type: p.type }))
 
     return Object.assign(formatted, { specialPlaylists })
   }

@@ -8,7 +8,6 @@ import { ActorHtml } from './shared/actor-html.js'
 import { PageHtml } from './shared/page-html.js'
 
 class ClientHtml {
-
   static invalidateCache () {
     PageHtml.invalidateCache()
   }
@@ -39,20 +38,20 @@ class ClientHtml {
 
   // ---------------------------------------------------------------------------
 
-  static getAccountHTMLPage (nameWithHost: string, req: express.Request, res: express.Response) {
-    return ActorHtml.getAccountHTMLPage(nameWithHost, req, res)
+  static getAccountHTMLPage (handle: string, req: express.Request, res: express.Response) {
+    return ActorHtml.getAccountHTMLPage(handle, req, res)
   }
 
-  static getVideoChannelHTMLPage (nameWithHost: string, req: express.Request, res: express.Response) {
-    return ActorHtml.getVideoChannelHTMLPage(nameWithHost, req, res)
+  static getVideoChannelHTMLPage (handle: string, req: express.Request, res: express.Response) {
+    return ActorHtml.getVideoChannelHTMLPage(handle, req, res)
   }
 
-  static getActorHTMLPage (nameWithHost: string, req: express.Request, res: express.Response) {
-    return ActorHtml.getActorHTMLPage(nameWithHost, req, res)
+  static getActorHTMLPage (handle: string, req: express.Request, res: express.Response) {
+    return ActorHtml.getActorHTMLPage(handle, req, res)
   }
 }
 
-function sendHTML (html: string, res: express.Response, localizedHTML: boolean = false) {
+function sendHTML (html: string, res: express.Response, localizedHTML = false) {
   res.set('Content-Type', 'text/html; charset=UTF-8')
   res.set('Cache-Control', 'max-age=0, no-cache, must-revalidate')
 

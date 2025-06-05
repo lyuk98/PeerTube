@@ -1,22 +1,22 @@
-import { NgClass, NgFor, NgIf } from '@angular/common'
+import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
-  LOCALE_ID,
   OnInit,
   booleanAttribute,
-  numberAttribute,
   inject,
   input,
+  numberAttribute,
   output
 } from '@angular/core'
-import { RouterLink } from '@angular/router'
 import { AuthService, ScreenService, ServerService, User } from '@app/core'
-import { HTMLServerConfig, VideoExistInPlaylist, VideoPlaylistType, VideoPrivacy, VideoState } from '@peertube/peertube-models'
+import { NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap'
+import { HTMLServerConfig, VideoPlaylistType, VideoPrivacy } from '@peertube/peertube-models'
 import { switchMap } from 'rxjs/operators'
 import { LinkType } from '../../../types/link.type'
 import { ActorAvatarComponent } from '../shared-actor-image/actor-avatar.component'
+import { GlobalIconComponent } from '../shared-icons/global-icon.component'
 import { LinkComponent } from '../shared-main/common/link.component'
 import { DateToggleComponent } from '../shared-main/date/date-toggle.component'
 import { Video } from '../shared-main/video/video.model'
@@ -24,18 +24,14 @@ import { VideoService } from '../shared-main/video/video.service'
 import { VideoThumbnailComponent } from '../shared-thumbnail/video-thumbnail.component'
 import { VideoPlaylistService } from '../shared-video-playlist/video-playlist.service'
 import { VideoViewsCounterComponent } from '../shared-video/video-views-counter.component'
-import { VideoActionsDisplayType, VideoActionsDropdownComponent } from './video-actions-dropdown.component'
 import { ActorHostComponent } from '../standalone-actor/actor-host.component'
+import { VideoActionsDisplayType, VideoActionsDropdownComponent } from './video-actions-dropdown.component'
 
 export type MiniatureDisplayOptions = {
   date?: boolean
   views?: boolean
   avatar?: boolean
   privacyLabel?: boolean
-  privacyText?: boolean
-  state?: boolean
-  blacklistInfo?: boolean
-  nsfw?: boolean
 
   by?: boolean
   forceChannelInBy?: boolean
@@ -47,17 +43,16 @@ export type MiniatureDisplayOptions = {
   templateUrl: './video-miniature.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    NgClass,
+    CommonModule,
     VideoThumbnailComponent,
-    NgIf,
     ActorAvatarComponent,
     LinkComponent,
     DateToggleComponent,
     VideoViewsCounterComponent,
-    RouterLink,
-    NgFor,
     VideoActionsDropdownComponent,
-    ActorHostComponent
+    ActorHostComponent,
+    GlobalIconComponent,
+    NgbTooltipModule
   ]
 })
 export class VideoMiniatureComponent implements OnInit {
@@ -67,11 +62,9 @@ export class VideoMiniatureComponent implements OnInit {
   private videoPlaylistService = inject(VideoPlaylistService)
   private videoService = inject(VideoService)
   private cd = inject(ChangeDetectorRef)
-  private localeId = inject(LOCALE_ID)
 
-  readonly user = input<User>(undefined)
-  readonly video = input<Video>(undefined)
-  readonly containedInPlaylists = input<VideoExistInPlaylist[]>(undefined)
+  readonly user = input.required<User>()
+  readonly video = input.required<Video>()
 
   readonly displayOptions = input<MiniatureDisplayOptions>({
     date: true,
@@ -79,9 +72,6 @@ export class VideoMiniatureComponent implements OnInit {
     by: true,
     avatar: true,
     privacyLabel: false,
-    privacyText: false,
-    state: false,
-    blacklistInfo: false,
     forceChannelInBy: false
   })
 
@@ -94,9 +84,7 @@ export class VideoMiniatureComponent implements OnInit {
     delete: true,
     report: true,
     duplicate: true,
-    mute: true,
-    studio: false,
-    stats: false
+    mute: true
   })
 
   readonly actorImageSize = input(34, { transform: numberAttribute })
@@ -131,23 +119,25 @@ export class VideoMiniatureComponent implements OnInit {
   ownerHref: string
   ownerTarget: string
 
+  nsfwTooltip: string
+
   private ownerDisplayType: 'account' | 'videoChannel'
   private actionsLoaded = false
 
-  get authorAccount () {
+  get preferAuthorDisplayName () {
     return this.serverConfig.client.videos.miniature.preferAuthorDisplayName
+  }
+
+  get authorAccount () {
+    return this.preferAuthorDisplayName
       ? this.video().account.displayName
       : this.video().account.name
   }
 
   get authorChannel () {
-    return this.serverConfig.client.videos.miniature.preferAuthorDisplayName
+    return this.preferAuthorDisplayName
       ? this.video().channel.displayName
       : this.video().channel.name
-  }
-
-  get isVideoBlur () {
-    return this.video().isVideoNSFWForUser(this.user(), this.serverConfig)
   }
 
   ngOnInit () {
@@ -158,6 +148,7 @@ export class VideoMiniatureComponent implements OnInit {
 
     this.setUpBy()
 
+    this.nsfwTooltip = this.videoService.buildNSFWTooltip(this.video())
     this.channelLinkTitle = $localize`${this.video().channel.name} (channel page)`
 
     // We rely on mouseenter to lazy load actions
@@ -166,7 +157,7 @@ export class VideoMiniatureComponent implements OnInit {
     }
   }
 
-  buildVideoLink () {
+  private buildVideoLink () {
     const videoLinkType = this.videoLinkType()
     const video = this.video()
     if (videoLinkType === 'internal' || !video.url) {
@@ -185,7 +176,7 @@ export class VideoMiniatureComponent implements OnInit {
     this.videoRouterLink = [ '/search/lazy-load-video', { url: video.url } ]
   }
 
-  buildOwnerLink () {
+  private buildOwnerLink () {
     const video = this.video()
 
     const linkType = this.videoLinkType()
@@ -226,49 +217,6 @@ export class VideoMiniatureComponent implements OnInit {
 
   isPasswordProtectedVideo () {
     return this.video().privacy.id === VideoPrivacy.PASSWORD_PROTECTED
-  }
-
-  getStateLabel (video: Video) {
-    if (!video.state) return ''
-
-    if (video.privacy.id !== VideoPrivacy.PRIVATE && video.state.id === VideoState.PUBLISHED) {
-      return $localize`Published`
-    }
-
-    if (video.scheduledUpdate) {
-      const updateAt = new Date(video.scheduledUpdate.updateAt.toString()).toLocaleString(this.localeId)
-      return $localize`Publication scheduled on ${updateAt}`
-    }
-
-    switch (video.state.id) {
-      case VideoState.TRANSCODING_FAILED:
-        return $localize`Transcoding failed`
-
-      case VideoState.TO_MOVE_TO_FILE_SYSTEM:
-        return $localize`Moving to file system`
-
-      case VideoState.TO_MOVE_TO_FILE_SYSTEM_FAILED:
-        return $localize`Moving to file system failed`
-
-      case VideoState.TO_MOVE_TO_EXTERNAL_STORAGE:
-        return $localize`Moving to external storage`
-
-      case VideoState.TO_MOVE_TO_EXTERNAL_STORAGE_FAILED:
-        return $localize`Move to external storage failed`
-
-      case VideoState.TO_TRANSCODE:
-        return video.waitTranscoding === true
-          ? $localize`Waiting transcoding`
-          : $localize`To transcode`
-
-      case VideoState.TO_IMPORT:
-        return $localize`To import`
-
-      case VideoState.TO_EDIT:
-        return $localize`To edit`
-    }
-
-    return ''
   }
 
   getAriaLabel () {
@@ -348,6 +296,18 @@ export class VideoMiniatureComponent implements OnInit {
       'has-avatar': this.displayOptions().avatar
     }
   }
+
+  // ---------------------------------------------------------------------------
+
+  hasNSFWWarning () {
+    return this.video().isNSFWWarnedForUser(this.user(), this.serverConfig)
+  }
+
+  hasNSFWBlur () {
+    return this.video().isNSFWBlurForUser(this.user(), this.serverConfig)
+  }
+
+  // ---------------------------------------------------------------------------
 
   private setUpBy () {
     if (this.displayOptions().forceChannelInBy) {

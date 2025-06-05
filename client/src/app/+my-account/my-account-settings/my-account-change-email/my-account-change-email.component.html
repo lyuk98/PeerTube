@@ -1,8 +1,16 @@
 <my-alert *ngIf="error" type="danger">{{ error }}</my-alert>
 <my-alert *ngIf="success" type="success">{{ success }}</my-alert>
 
-<div i18n class="pending-email" *ngIf="user.pendingEmail">
-  <strong>{{ user.pendingEmail }}</strong> is awaiting email verification
+<div class="pending-email" *ngIf="user.pendingEmail">
+  <div i18n>
+    <strong>{{ user.pendingEmail }}</strong> is awaiting email verification.
+  </div>
+
+  @if (verificationEmailSent) {
+    <div i18n>Email verification sent!</div>
+  } @else {
+    <button type="button" class="peertube-button-like-link" i18n (click)="resendVerificationEmail()">Resend your verification email</button>
+  }
 </div>
 
 <form class="change-email" (ngSubmit)="changeEmail()" [formGroup]="form">
@@ -11,8 +19,7 @@
     <label i18n for="new-email">Change your email</label>
 
     <div i18n class="form-group-description">
-      Your current email is <strong>{{ user.email }}</strong>.
-      It is never shown to the public.
+      Your current email is <strong>{{ user.email }}</strong>
     </div>
 
     <input

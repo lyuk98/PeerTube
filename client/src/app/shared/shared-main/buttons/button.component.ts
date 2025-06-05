@@ -6,6 +6,8 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  HostBinding,
+  HostListener,
   OnChanges,
   booleanAttribute,
   inject,
@@ -60,6 +62,8 @@ export class ButtonComponent implements OnChanges, AfterViewInit {
   readonly responsiveLabel = input(false, { transform: booleanAttribute })
   readonly autoFontSize = input(false, { transform: booleanAttribute })
   readonly rounded = input(false, { transform: booleanAttribute })
+  readonly small = input(false, { transform: booleanAttribute })
+  readonly show = input(false, { transform: booleanAttribute })
 
   readonly labelContent = viewChild<ElementRef>('labelContent')
 
@@ -71,6 +75,19 @@ export class ButtonComponent implements OnChanges, AfterViewInit {
 
   ngAfterViewInit () {
     this.buildClasses()
+  }
+
+  @HostListener('touchend', [ '$event' ])
+  onTouchEnd (event: TouchEvent): void {
+    if (this.disabled()) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+  }
+
+  @HostBinding('style.pointer-events')
+  get pointerEvents (): string {
+    return this.disabled() ? 'none' : 'auto'
   }
 
   private buildClasses () {
@@ -88,7 +105,9 @@ export class ButtonComponent implements OnChanges, AfterViewInit {
       'rounded-icon-button': !!this.rounded(),
       'icon-only': !label,
       'label-xl': this.autoFontSize() && label.length > 10,
-      'responsive-label': this.responsiveLabel()
+      'responsive-label': this.responsiveLabel(),
+      'small-button': this.small(),
+      'show': this.show()
     }
 
     debugLogger('Built button classes', { classes: this.classes, label, labelContent: this.labelContent() })

@@ -11,7 +11,7 @@ import {
   getOriginalFileReadStream,
   getWebVideoFileReadStream
 } from '@server/lib/object-storage/videos.js'
-import { muxToMergeVideoFiles } from '@server/lib/video-file.js'
+import { VideoDownload } from '@server/lib/video-download.js'
 import { VideoPathManager } from '@server/lib/video-path-manager.js'
 import { VideoCaptionModel } from '@server/models/video/video-caption.js'
 import { VideoChannelModel } from '@server/models/video/video-channel.js'
@@ -23,11 +23,14 @@ import { VideoModel } from '@server/models/video/video.js'
 import {
   MStreamingPlaylistFiles,
   MThumbnail,
-  MVideo, MVideoAP, MVideoCaption,
+  MVideo,
+  MVideoAP,
+  MVideoCaption,
   MVideoCaptionLanguageUrl,
   MVideoChapter,
   MVideoFile,
-  MVideoFullLight, MVideoLiveWithSetting,
+  MVideoFullLight,
+  MVideoLiveWithSetting,
   MVideoPassword
 } from '@server/types/models/index.js'
 import { MVideoSource } from '@server/types/models/video/video-source.js'
@@ -37,11 +40,12 @@ import { extname, join } from 'path'
 import { PassThrough, Readable } from 'stream'
 import { AbstractUserExporter, ExportResult } from './abstract-user-exporter.js'
 
-export class VideosExporter extends AbstractUserExporter <VideoExportJSON> {
-
-  constructor (private readonly options: ConstructorParameters<typeof AbstractUserExporter<VideoExportJSON>>[0] & {
-    withVideoFiles: boolean
-  }) {
+export class VideosExporter extends AbstractUserExporter<VideoExportJSON> {
+  constructor (
+    private readonly options: ConstructorParameters<typeof AbstractUserExporter<VideoExportJSON>>[0] & {
+      withVideoFiles: boolean
+    }
+  ) {
     super(options)
   }
 
@@ -89,10 +93,8 @@ export class VideosExporter extends AbstractUserExporter <VideoExportJSON> {
 
     const live = video.isLive
       ? await VideoLiveModel.loadByVideoIdWithSettings(videoId)
-      : undefined;
-
-    // We already have captions, so we can set it to the video object
-    (video as any).VideoCaptions = captions
+      : undefined // We already have captions, so we can set it to the video object
+    ;(video as any).VideoCaptions = captions
     // Then fetch more attributes for AP serialization
     const videoAP = await video.lightAPToFullAP(undefined)
 
@@ -320,7 +322,7 @@ export class VideosExporter extends AbstractUserExporter <VideoExportJSON> {
     const relativePathsFromJSON = {
       videoFile: null as string,
       thumbnail: null as string,
-      captions: {} as { [ lang: string ]: string }
+      captions: {} as { [lang: string]: string }
     }
 
     if (this.options.withVideoFiles) {
@@ -333,9 +335,10 @@ export class VideosExporter extends AbstractUserExporter <VideoExportJSON> {
           archivePath: videoPath,
 
           // Prefer using original file if possible
-          readStreamFactory: () => source?.keptOriginalFilename
-            ? this.generateVideoSourceReadStream(source)
-            : this.generateVideoFileReadStream({ video, videoFile, separatedAudioFile })
+          readStreamFactory: () =>
+            source?.keptOriginalFilename
+              ? this.generateVideoSourceReadStream(source)
+              : this.generateVideoFileReadStream({ video, videoFile, separatedAudioFile })
         })
 
         relativePathsFromJSON.videoFile = join(this.relativeStaticDirPath, videoPath)
@@ -388,7 +391,8 @@ export class VideosExporter extends AbstractUserExporter <VideoExportJSON> {
     if (separatedAudioFile) {
       const stream = new PassThrough()
 
-      muxToMergeVideoFiles({ video, videoFiles: [ videoFile, separatedAudioFile ], output: stream })
+      new VideoDownload({ video, videoFiles: [ videoFile, separatedAudioFile ] })
+        .muxToMergeVideoFiles(stream)
         .catch(err => logger.error('Cannot mux video files', { err }))
 
       return Promise.resolve(stream)
@@ -407,7 +411,7 @@ export class VideosExporter extends AbstractUserExporter <VideoExportJSON> {
 
   private async generateCaptionReadStream (caption: MVideoCaption): Promise<Readable> {
     if (caption.storage === FileStorage.FILE_SYSTEM) {
-      return createReadStream(caption.getFSPath())
+      return createReadStream(caption.getFSFilePath())
     }
 
     const { stream } = await getCaptionReadStream({ filename: caption.filename, rangeHeader: undefined })

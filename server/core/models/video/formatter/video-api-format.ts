@@ -12,7 +12,7 @@ import {
 import { uuidToShort } from '@peertube/peertube-node-utils'
 import { generateMagnetUri } from '@server/helpers/webtorrent.js'
 import { tracer } from '@server/lib/opentelemetry/tracing.js'
-import { getHlsResolutionPlaylistFilename } from '@server/lib/paths.js'
+import { getHLSResolutionPlaylistFilename } from '@server/lib/paths.js'
 import { getLocalVideoFileMetadataUrl } from '@server/lib/video-urls.js'
 import { VideoViewsManager } from '@server/lib/views/video-views-manager.js'
 import { isArray } from '../../../helpers/custom-validators/misc.js'
@@ -43,7 +43,7 @@ export type VideoFormattingJSONOptions = {
   }
 }
 
-export function guessAdditionalAttributesFromQuery (query: VideosCommonQueryAfterSanitize): VideoFormattingJSONOptions {
+export function guessAdditionalAttributesFromQuery (query: Pick<VideosCommonQueryAfterSanitize, 'include'>): VideoFormattingJSONOptions {
   if (!query?.include) return {}
 
   return {
@@ -93,7 +93,10 @@ export function videoModelToFormattedJSON (video: MVideoFormattable, options: Vi
       id: video.privacy,
       label: getPrivacyLabel(video.privacy)
     },
+
     nsfw: video.nsfw,
+    nsfwFlags: video.nsfwFlags,
+    nsfwSummary: video.nsfwSummary,
 
     truncatedDescription: video.getTruncatedDescription(),
     description: options && options.completeDescription === true
@@ -126,6 +129,8 @@ export function videoModelToFormattedJSON (video: MVideoFormattable, options: Vi
     userHistory: userHistory
       ? { currentTime: userHistory.currentTime }
       : undefined,
+
+    comments: video.comments,
 
     // Can be added by external plugins
     pluginData: (video as any).pluginData,
@@ -275,7 +280,7 @@ export function videoFilesModelToFormattedJSON (
         hasVideo: videoFile.hasVideo(),
 
         playlistUrl: includePlaylistUrl === true
-          ? getHlsResolutionPlaylistFilename(fileUrl)
+          ? getHLSResolutionPlaylistFilename(fileUrl)
           : undefined,
 
         storage: video.remote
@@ -336,10 +341,9 @@ function buildAdditionalAttributes (video: MVideoFormattable, options: VideoForm
 
   if (add?.blacklistInfo === true) {
     result.blacklisted = !!video.VideoBlacklist
-    result.blacklistedReason =
-      video.VideoBlacklist
-        ? video.VideoBlacklist.reason
-        : null
+    result.blacklistedReason = video.VideoBlacklist
+      ? video.VideoBlacklist.reason
+      : null
   }
 
   if (add?.blockedOwner === true) {

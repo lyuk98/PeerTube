@@ -6,6 +6,7 @@ import { Hooks } from '@server/lib/plugins/hooks.js'
 import { regenerateMiniaturesIfNeeded } from '@server/lib/thumbnail.js'
 import { setupUploadResumableRoutes } from '@server/lib/uploadx.js'
 import { autoBlacklistVideoIfNeeded } from '@server/lib/video-blacklist.js'
+import { regenerateTranscriptionTaskIfNeeded } from '@server/lib/video-captions.js'
 import { buildNewFile, createVideoSource } from '@server/lib/video-file.js'
 import { buildMoveVideoJob, buildStoryboardJobIfNeeded } from '@server/lib/video-jobs.js'
 import { VideoPathManager } from '@server/lib/video-path-manager.js'
@@ -29,14 +30,16 @@ const lTags = loggerTagsFactory('api', 'video')
 
 const videoSourceRouter = express.Router()
 
-videoSourceRouter.get('/:id/source',
+videoSourceRouter.get(
+  '/:id/source',
   openapiOperationDoc({ operationId: 'getVideoSource' }),
   authenticate,
   asyncMiddleware(videoSourceGetLatestValidator),
   getVideoLatestSource
 )
 
-videoSourceRouter.delete('/:id/source/file',
+videoSourceRouter.delete(
+  '/:id/source/file',
   openapiOperationDoc({ operationId: 'deleteVideoSourceFile' }),
   authenticate,
   ensureUserHasRight(UserRight.MANAGE_VIDEO_FILES),
@@ -161,7 +164,7 @@ async function replaceVideoSourceResumable (req: express.Request, res: express.R
 async function addVideoJobsAfterUpload (video: MVideoFullLight, videoFile: MVideoFile) {
   const jobs: (CreateJobArgument & CreateJobOptions)[] = [
     {
-      type: 'manage-video-torrent' as 'manage-video-torrent',
+      type: 'manage-video-torrent' as const,
       payload: {
         videoId: video.id,
         videoFileId: videoFile.id,
@@ -172,7 +175,7 @@ async function addVideoJobsAfterUpload (video: MVideoFullLight, videoFile: MVide
     buildStoryboardJobIfNeeded({ video, federate: false }),
 
     {
-      type: 'federate-video' as 'federate-video',
+      type: 'federate-video' as const,
       payload: {
         videoUUID: video.uuid,
         isNewVideoForFederation: false
@@ -186,7 +189,7 @@ async function addVideoJobsAfterUpload (video: MVideoFullLight, videoFile: MVide
 
   if (video.state === VideoState.TO_TRANSCODE) {
     jobs.push({
-      type: 'transcoding-job-builder' as 'transcoding-job-builder',
+      type: 'transcoding-job-builder' as const,
       payload: {
         videoUUID: video.uuid,
         optimizeJob: {
@@ -196,7 +199,9 @@ async function addVideoJobsAfterUpload (video: MVideoFullLight, videoFile: MVide
     })
   }
 
-  return JobQueue.Instance.createSequentialJobFlow(...jobs)
+  await JobQueue.Instance.createSequentialJobFlow(...jobs)
+
+  await regenerateTranscriptionTaskIfNeeded(video)
 }
 
 async function removeOldFiles (options: {
@@ -211,6 +216,6 @@ async function removeOldFiles (options: {
   }
 
   for (const playlist of playlists) {
-    await video.removeStreamingPlaylistFiles(playlist)
+    await video.removeAllStreamingPlaylistFiles({ playlist })
   }
 }

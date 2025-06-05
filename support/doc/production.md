@@ -34,8 +34,7 @@ ls -ld /var/www/peertube # Should be drwxr-xr-x
 **On FreeBSD**
 
 ```bash
-sudo pw useradd -n peertube -d /var/www/peertube -s /usr/local/bin/bash -m
-sudo passwd peertube
+sudo pw useradd -n peertube -d /var/www/peertube -s /usr/sbin/nologin -m
 ```
 or use `adduser` to create it interactively.
 
@@ -256,6 +255,7 @@ If your OS uses OpenRC, copy the service script:
 
 ```bash
 sudo cp /var/www/peertube/peertube-latest/support/init.d/peertube /etc/init.d/
+sudo cp /var/www/peertube/peertube-latest/support/conf.d/peertube /etc/conf.d/
 ```
 
 If you want to start PeerTube on boot:
@@ -381,6 +381,16 @@ Check changes in systemd configuration:
 cd /var/www/peertube/versions
 diff -u "$(ls -t | head -2 | tail -1)/support/systemd/peertube.service" "$(ls -t | head -1)/support/systemd/peertube.service"
 ```
+
+<details>
+<summary><strong>If using OpenRC</strong></summary>
+
+```bash
+cd /var/www/peertube/versions
+diff -u "$(ls -t | head -2 | tail -1)/support/init.d/peertube" "$(ls -t | head -1)/support/init.d/peertube"
+diff -u "$(ls -t | head -2 | tail -1)/support/conf.d/peertube" "$(ls -t | head -1)/support/conf.d/peertube"
+```
+</details>
 
 ### Restart PeerTube
 

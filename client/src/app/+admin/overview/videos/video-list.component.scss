@@ -1,5 +1,10 @@
-@use '_variables' as *;
-@use '_mixins' as *;
+@use "_variables" as *;
+@use "_mixins" as *;
+
+td {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
 
 my-embed {
   display: block;
@@ -7,7 +12,9 @@ my-embed {
   width: 50%;
 }
 
-.pt-badge {
+.pt-badge,
+my-video-privacy-badge,
+my-video-nsfw-badge {
   @include margin-right(5px);
 }
 

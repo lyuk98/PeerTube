@@ -6,14 +6,15 @@ import { readFileSync } from 'fs'
 import merge from 'lodash-es/merge.js'
 import { Transporter, createTransport } from 'nodemailer'
 import { join } from 'path'
+import pug from 'pug'
 import { bunyanLogger, logger } from '../helpers/logger.js'
 import { CONFIG, isEmailEnabled } from '../initializers/config.js'
 import { WEBSERVER } from '../initializers/constants.js'
 import { MRegistration, MUser, MUserExport, MUserImport } from '../types/models/index.js'
 import { JobQueue } from './job-queue/index.js'
+import { Hooks } from './plugins/hooks.js'
 
 class Emailer {
-
   private static instance: Emailer
   private initialized = false
   private transporter: Transporter
@@ -87,7 +88,29 @@ class Emailer {
     return JobQueue.Instance.createJobAsync({ type: 'email', payload: emailPayload })
   }
 
-  addVerifyEmailJob (options: {
+  addUserVerifyChangeEmailJob (options: {
+    username: string
+    to: string
+    verifyEmailUrl: string
+  }) {
+    const { username, to, verifyEmailUrl } = options
+
+    const emailPayload: EmailPayload = {
+      template: 'verify-user-change-email',
+      to: [ to ],
+      subject: `Verify your email on ${CONFIG.INSTANCE.NAME}`,
+      locals: {
+        username,
+        verifyEmailUrl,
+
+        hideNotificationPreferencesLink: true
+      }
+    }
+
+    return JobQueue.Instance.createJobAsync({ type: 'email', payload: emailPayload })
+  }
+
+  addRegistrationVerifyEmailJob (options: {
     username: string
     isRegistrationRequest: boolean
     to: string
@@ -96,7 +119,7 @@ class Emailer {
     const { username, isRegistrationRequest, to, verifyEmailUrl } = options
 
     const emailPayload: EmailPayload = {
-      template: 'verify-email',
+      template: 'verify-registration-email',
       to: [ to ],
       subject: `Verify your email on ${CONFIG.INSTANCE.NAME}`,
       locals: {
@@ -260,15 +283,29 @@ class Emailer {
           { selector: 'a', options: { hideLinkHrefIfSameAsText: true } }
         ]
       },
+      render: async (view: string, locals: Record<string, string>) => {
+        if (view.split('/').pop() !== 'html') return undefined
+
+        const templatePath = await Hooks.wrapObject(
+          join(root(), 'dist', 'core', 'assets', 'email-templates', view + '.pug'),
+          'filter:email.template-path.result',
+          { view }
+        )
+        const compiledTemplate = pug.compileFile(templatePath)
+
+        return compiledTemplate(locals)
+      },
       message: {
         from: `"${fromDisplayName}" <${CONFIG.SMTP.FROM_ADDRESS}>`
       },
       transport: this.transporter,
-      views: {
-        root: join(root(), 'dist', 'core', 'assets', 'email-templates')
-      },
       subjectPrefix: CONFIG.EMAIL.SUBJECT.PREFIX
     })
+    const subject = await Hooks.wrapObject(
+      options.subject,
+      'filter:email.subject.result',
+      { template: 'template' in options ? options.template : undefined }
+    )
 
     const toEmails = arrayify(options.to)
 
@@ -280,7 +317,7 @@ class Emailer {
         message: {
           to,
           from: options.from,
-          subject: options.subject,
+          subject,
           replyTo: options.replyTo
         },
         locals: { // default variables available in all templates
@@ -288,7 +325,7 @@ class Emailer {
           EMAIL: CONFIG.EMAIL,
           instanceName: CONFIG.INSTANCE.NAME,
           text: options.text,
-          subject: options.subject
+          subject
         }
       }
 
@@ -321,7 +358,7 @@ class Emailer {
   private initSMTPTransport () {
     logger.info('Using %s:%s as SMTP server.', CONFIG.SMTP.HOSTNAME, CONFIG.SMTP.PORT)
 
-    let tls: { ca: [ Buffer ] }
+    let tls: { ca: [Buffer] }
     if (CONFIG.SMTP.CA_FILE) {
       tls = {
         ca: [ readFileSync(CONFIG.SMTP.CA_FILE) ]

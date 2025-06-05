@@ -1,5 +1,5 @@
 import { NgIf } from '@angular/common'
-import { Component, OnDestroy, OnInit, inject, viewChild } from '@angular/core'
+import { Component, inject, OnDestroy, OnInit, viewChild } from '@angular/core'
 import { ComponentPaginationLight, DisableForReuseHook, ScreenService } from '@app/core'
 import { Account } from '@app/shared/shared-main/account/account.model'
 import { AccountService } from '@app/shared/shared-main/account/account.service'
@@ -37,6 +37,8 @@ export class AccountVideosComponent implements OnInit, OnDestroy, DisableForReus
     // Parent get the account for us
     this.accountSub = this.accountService.accountLoaded
       .subscribe(account => {
+        if (account.id === this.account?.id) return
+
         this.account = account
         if (this.alreadyLoaded) this.videosList().reloadVideos()
 
@@ -57,7 +59,7 @@ export class AccountVideosComponent implements OnInit, OnDestroy, DisableForReus
       skipCount: true
     }
 
-    return this.videoService.getAccountVideos(options)
+    return this.videoService.listAccountVideos(options)
   }
 
   getSyndicationItems () {

@@ -57,10 +57,7 @@ export class MyHistoryComponent implements OnInit, DisableForReuseHook {
     date: true,
     views: true,
     by: true,
-    privacyLabel: false,
-    privacyText: true,
-    state: true,
-    blacklistInfo: true
+    privacyLabel: false
   }
 
   getVideosObservableFunction = this.getVideosObservable.bind(this)

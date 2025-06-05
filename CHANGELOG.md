@@ -1,10 +1,108 @@
 # Changelog
 
+## v7.2.0
+
+### IMPORTANT NOTES
+
+ * **Important** You need to manually execute a migration script after your upgrade while PeerTube is running and the database migration is complete (`Migrations finished. New migration version schema: xxx` in PeerTube startup logs):
+   * Classic installation: `cd /var/www/peertube/peertube-latest && sudo -u peertube NODE_CONFIG_DIR=/var/www/peertube/config NODE_ENV=production node dist/scripts/migrations/peertube-7.2.js`
+   * Docker installation: `cd /var/www/peertube-docker && docker compose exec -u peertube peertube node dist/scripts/migrations/peertube-7.2.js`
+
+### SECURITY
+
+ * If you installed PeerTube using the [official documentation](https://docs.joinpeertube.org/install/any-os#installation), we highly recommend setting the default user shell to `nologin`. For example on GNU/Linux: `chsh -s /usr/sbin/nologin peertube`
+ * If you installed PeerTube runners using the [official Systemd service documentation]https://docs.joinpeertube.org/maintain/tools#as-a-systemd-service(), we highly recommend setting the default user shell to `nologin`. For example on GNU/Linux: `chsh -s /usr/sbin/nologin prunner`
+
+### Configuration
+
+  * Prefer to not store lives in object storage by default: `object_storage.streaming_playlists.store_live_streams` is now `false` in the config template
+  * Use `hot` trending algorithm by default: `trending.videos.default` is now `hot` in the config template
+  * Add global rate limit to video download that can be changed by `download_generate_video.max_parallel_downloads`
+
+### Docker
+
+  * Add missing docker env options to configure live settings [#6948](https://github.com/Chocobozzz/PeerTube/pull/6948)
+  * Expose NGINX logs folder in `docker-compose.yml` [#6963](https://github.com/Chocobozzz/PeerTube/pull/6963)
+  * Add exec to NGINX process to ensure is PID 1 and then ensure a graceful shutdown[#7041](https://github.com/Chocobozzz/PeerTube/pull/7041)
+
+### NGINX
+
+ * Fix max body size inconsistency with PeerTube backend: https://github.com/Chocobozzz/PeerTube/commit/a2812e40d90619528a6b2a4c491640a9737f8f3c
+
+### Plugins/Themes/Embed API
+
+  * **Breaking change** Theme CSS must include `--is-dark: 0` or `--is-dark: 1` CSS variable for the `body` so PeerTube understands if it's a dark or a light theme
+  * Add server plugin hooks (https://docs.joinpeertube.org/api/plugins):
+    * `filter:email.subject.result` & `filter:email.template-path.result` [#6876](https://github.com/Chocobozzz/PeerTube/pull/6876)
+
+### Features
+
+  * :tada: Redesign *Manage my videos* page :tada:
+    * Redesign the page to list more videos for a clearer overview
+    * Add sort, pagination and column display settings
+    * Add channel buttons to quickly filter videos
+    * Improve video search & filters
+    * Add ability to display video comments count [#6635](https://github.com/Chocobozzz/PeerTube/pull/6635)
+  * :tada: Redesign video management/publication pages :tada:
+    * Migrate the video update page to a *Manage video* tool, that includes *Studio* and *Stats* features
+    * Video publication privacy choice is moved in the second step
+    * Use a lateral menu to navigate between *Manage video* pages
+    * Add information related to the video state (transcoding, etc.) and clearly display unavailable features
+    * Add user agent stats to video stats [#6871](https://github.com/Chocobozzz/PeerTube/pull/6871)
+    * Support drag-and-drop to replace the video file [#6970](https://github.com/Chocobozzz/PeerTube/pull/6970)
+  * :tada: Improve NSFW/sensitive content system :tada:
+    * Support content warning so video authors can describe why the video is considered sensitive
+    * Change the *Blur* sensitive content policy for viewers where the miniature name is not blurred anymore
+    * Add an additional *Warn* sensitive content policy for viewers where the thumbnail is not blurred
+    * *Blur* and *Warn* policies add a *Sensitive* icon below the thumbnail. A warning is also displayed in the player
+    * The player embed now displays the sensitive content warning
+    * Add ability to set predefined sensitive flags to videos so video authors help to identify specific sensitive content
+    * If enabled by administrators, users can override their default sensitive content policy for specific flags.
+    For example, they can hide all sensitive content but display with a warning content flagged as *Violent* by video authors
+    * Add sensitive content filter in admin videos overview
+  * Allow users to resend the email verification link when changing their current email
+  * Inject subtitle links in HLS playlists so it's easier for external video players that use the `master.m3u8` playlist to display subtitles
+  * Disable log coloration when TTY does not support it [#6988](https://github.com/Chocobozzz/PeerTube/pull/6988)
+  * Support more embed parameters in custom markup (`<peertube-video-embed>` and `<peertube-playlist-embed>`) [#6989](https://github.com/Chocobozzz/PeerTube/pull/6989)
+
+### Bug fixes
+
+  * More robust theme CSS variables injection
+  * Fix podcast feed URL in subscribe button
+  * Fix podcast feed download extension when the file is a video
+  * Fix broken downloaded audio file
+  * Fix crash on download stream error
+  * Fix local posts counter in NodeInfo
+  * Run transcription after file replacement
+  * Better video chapters parsing from the description
+  * Correctly handle `generateTranscription` body param on upload/import
+  * Fix federation compatibility with GoToSocial
+  * Fix PeerTube account client redirection
+  * Prevent plugins to log exceptions
+  * Fix broken replay on live privacy change
+  * Fix iOS/Android deep link with URL that contains query params in watch page
+  * Fix ownership changes count
+  * Always specify object storage content type
+  * Fix broken live title in Chinese
+  * Fix theme crash in embed
+  * Fix broken video state on move on object storage failure
+  * Fix CORS issue with object storage providers
+  * Correctly display images in support modal
+
+
 ## v7.1.1
 
 ### SECURITY
 
-  * This version fixes important vulnerabilities, that will be detailed on Tuesday, April 15
+This release fixes important vulnerabilities discovered by Ori Hollander of the JFrog Vulnerability Research team. Many thanks to them!
+
+  * Fix DoS and blind SSRF on ActivityPub playlist creation [CVE-2025-32948](https://research.jfrog.com/vulnerabilities/peertube-activitypub-playlist-creation-blind-ssrf-dos/)
+  * Prevent infinite loop DoS when crawling ActivityPub data [CVE-2025-32947](https://research.jfrog.com/vulnerabilities/peertube-activitypub-crawl-dos/)
+  * Prevent an attacker from adding playlists to a another user's channel using the ActivityPub [CVE-2025-32946](https://research.jfrog.com/vulnerabilities/peertube-arbitrary-playlist-creation-activitypub/)
+  * Prevent an attacker from adding playlists to a another user's channel using the REST API [CVE-2025-32945](https://research.jfrog.com/vulnerabilities/peertube-arbitrary-playlist-creation-rest/)
+  * Add protection against [ZIP bomb](https://en.wikipedia.org/wiki/Zip_bomb) on user import [CVE-2025-32949](https://research.jfrog.com/vulnerabilities/peertube-archive-resource-exhaustion/)
+  * Prevent crash on user import with a ZIP containg an illegal filename [CVE-2025-32944](https://research.jfrog.com/vulnerabilities/peertube-archive-persistent-dos/)
+  * Do not leak private HLS playlists (`.m3u8` files) [CVE-2025-32943](https://research.jfrog.com/vulnerabilities/peertube-hls-path-traversal/)
 
 ### Bug fixes
 

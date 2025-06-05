@@ -14,19 +14,18 @@ import { TableModule } from 'primeng/table'
 import { switchMap } from 'rxjs/operators'
 import { environment } from 'src/environments/environment'
 import { AdvancedInputFilter, AdvancedInputFilterComponent } from '../../../shared/shared-forms/advanced-input-filter.component'
-import { GlobalIconComponent } from '../../../shared/shared-icons/global-icon.component'
 import { ActionDropdownComponent, DropdownAction } from '../../../shared/shared-main/buttons/action-dropdown.component'
 import { AutoColspanDirective } from '../../../shared/shared-main/common/auto-colspan.directive'
 import { EmbedComponent } from '../../../shared/shared-main/video/embed.component'
 import { TableExpanderIconComponent } from '../../../shared/shared-tables/table-expander-icon.component'
 import { VideoCellComponent } from '../../../shared/shared-tables/video-cell.component'
+import { VideoNSFWBadgeComponent } from '../../../shared/shared-video/video-nsfw-badge.component'
 
 @Component({
   selector: 'my-video-block-list',
   templateUrl: './video-block-list.component.html',
   styleUrls: [ '../../../shared/shared-moderation/moderation.scss' ],
   imports: [
-    GlobalIconComponent,
     TableModule,
     SharedModule,
     AdvancedInputFilterComponent,
@@ -38,7 +37,8 @@ import { VideoCellComponent } from '../../../shared/shared-tables/video-cell.com
     VideoCellComponent,
     AutoColspanDirective,
     EmbedComponent,
-    PTDatePipe
+    PTDatePipe,
+    VideoNSFWBadgeComponent
   ]
 })
 export class VideoBlockListComponent extends RestTable implements OnInit {

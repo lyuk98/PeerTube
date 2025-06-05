@@ -28,6 +28,10 @@ export class ConfirmComponent implements OnInit {
   inputLabel = ''
 
   inputValue = ''
+
+  moreInfo: { title: string, content: string }
+
+  cancelButtonText = ''
   confirmButtonText = ''
 
   errorMessage = ''
@@ -45,13 +49,15 @@ export class ConfirmComponent implements OnInit {
         this.expectedInputValue = ''
         this.inputLabel = ''
         this.inputValue = ''
+        this.moreInfo = undefined
         this.confirmButtonText = ''
         this.isPasswordInput = false
         this.errorMessage = ''
 
-        const { type, title, message, confirmButtonText, errorMessage } = payload
+        const { type, title, message, confirmButtonText, cancelButtonText, errorMessage, moreInfo } = payload
 
         this.title = title
+        this.moreInfo = moreInfo
 
         if (type === 'confirm-expected-input') {
           this.inputLabel = payload.inputLabel
@@ -63,6 +69,7 @@ export class ConfirmComponent implements OnInit {
         }
 
         this.confirmButtonText = confirmButtonText || $localize`Confirm`
+        this.cancelButtonText = cancelButtonText || $localize`Cancel`
 
         this.html.toSimpleSafeHtml(message)
           .then(html => {

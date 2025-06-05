@@ -1,7 +1,6 @@
 import { browserSleep, isIOS, isMobileDevice, isSafari } from '../utils'
 
 export class PlayerPage {
-
   getWatchVideoPlayerCurrentTime () {
     const elem = $('video')
 
@@ -10,7 +9,7 @@ export class PlayerPage {
       : elem.getProperty('currentTime')
 
     return p.then(t => parseInt(t + '', 10))
-            .then(t => Math.ceil(t))
+      .then(t => Math.ceil(t))
   }
 
   waitUntilPlaylistInfo (text: string, maxTime: number) {
@@ -23,9 +22,11 @@ export class PlayerPage {
   }
 
   waitUntilPlayerWrapper () {
-    return browser.waitUntil(async () => {
-      return !!(await $('#placeholder-preview'))
-    })
+    return $('#video-wrapper').waitForExist()
+  }
+
+  waitUntilPlaying () {
+    return $('.video-js.vjs-playing').waitForDisplayed()
   }
 
   async playAndPauseVideo (isAutoplay: boolean, waitUntilSec: number) {
@@ -66,16 +67,36 @@ export class PlayerPage {
     return this.clickOnPlayButton()
   }
 
-  private async clickOnPlayButton () {
-    const playButton = () => $('.vjs-big-play-button')
+  getPlayButton () {
+    return $('.vjs-big-play-button')
+  }
 
-    await playButton().waitForClickable()
-    await playButton().click()
+  getNSFWContentText () {
+    return $('.video-js .nsfw-content').getText()
+  }
+
+  getNSFWMoreContent () {
+    return $('.video-js .nsfw-more-content')
+  }
+
+  getMoreNSFWInfoButton () {
+    return $('.video-js .nsfw-container button')
+  }
+
+  async hasPoster () {
+    const property = await $('.video-js .vjs-poster').getCSSProperty('background-image')
+
+    return property.value.startsWith('url(')
+  }
+
+  private async clickOnPlayButton () {
+    await this.getPlayButton().waitForClickable()
+    await this.getPlayButton().click()
   }
 
   async fillEmbedVideoPassword (videoPassword: string) {
     const videoPasswordInput = $('input#video-password-input')
-    const confirmButton = await $('button#video-password-submit')
+    const confirmButton = $('button#video-password-submit')
 
     await videoPasswordInput.clearValue()
     await videoPasswordInput.setValue(videoPassword)

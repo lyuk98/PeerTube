@@ -6,7 +6,6 @@ import { ServerConfig, ServerStats } from '@peertube/peertube-models'
 import { of } from 'rxjs'
 import { HelpComponent } from '../shared-main/buttons/help.component'
 import { BytesPipe } from '../shared-main/common/bytes.pipe'
-import { PeerTubeTemplateDirective } from '../shared-main/common/peertube-template.directive'
 import { DaysDurationFormatterPipe } from '../shared-main/date/days-duration-formatter.pipe'
 import { FeatureBooleanComponent } from './feature-boolean.component'
 
@@ -14,7 +13,7 @@ import { FeatureBooleanComponent } from './feature-boolean.component'
   selector: 'my-instance-features-table',
   templateUrl: './instance-features-table.component.html',
   styleUrls: [ './instance-features-table.component.scss' ],
-  imports: [ NgIf, FeatureBooleanComponent, HelpComponent, PeerTubeTemplateDirective, NgFor, BytesPipe ]
+  imports: [ NgIf, FeatureBooleanComponent, HelpComponent, NgFor, BytesPipe ]
 })
 export class InstanceFeaturesTableComponent implements OnInit {
   private serverService = inject(ServerService)
@@ -67,7 +66,8 @@ export class InstanceFeaturesTableComponent implements OnInit {
     const policy = this.serverConfig().instance.defaultNSFWPolicy
 
     if (policy === 'do_not_list') return $localize`Hidden`
-    if (policy === 'blur') return $localize`Blurred with confirmation request`
+    if (policy === 'warn') return $localize`Warn users`
+    if (policy === 'blur') return $localize`Warn users and blur thumbnail`
     if (policy === 'display') return $localize`Displayed`
   }
 

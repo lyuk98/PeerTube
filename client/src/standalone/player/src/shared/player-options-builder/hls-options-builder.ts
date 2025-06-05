@@ -2,31 +2,27 @@ import { getResolutionAndFPSLabel, getResolutionLabel } from '@peertube/peertube
 import { LiveVideoLatencyMode } from '@peertube/peertube-models'
 import { logger } from '@root-helpers/logger'
 import { peertubeLocalStorage } from '@root-helpers/peertube-web-storage'
+import { isSameOrigin } from '@root-helpers/url'
 import debug from 'debug'
 import { Level } from 'hls.js'
 import type { CoreConfig, StreamConfig } from 'p2p-media-loader-core'
 import { getAverageBandwidthInStore } from '../../peertube-player-local-storage'
-import {
-  HLSPluginOptions,
-  P2PMediaLoaderPluginOptions,
-  PeerTubePlayerConstructorOptions,
-  PeerTubePlayerLoadOptions
-} from '../../types'
-import { getRtcConfig, isSameOrigin } from '../common'
+import { HLSPluginOptions, P2PMediaLoaderPluginOptions, PeerTubePlayerConstructorOptions, PeerTubePlayerLoadOptions } from '../../types'
+import { getRtcConfig } from '../common'
 import { RedundancyUrlManager } from '../p2p-media-loader/redundancy-url-manager'
 import { SegmentValidator } from '../p2p-media-loader/segment-validator'
 
 const debugLogger = debug('peertube:player:hls')
 
 type ConstructorOptions =
-  Pick<PeerTubePlayerConstructorOptions, 'pluginsManager' | 'serverUrl' | 'authorizationHeader' | 'stunServers'> &
-  Pick<PeerTubePlayerLoadOptions, 'videoPassword' | 'requiresUserAuth' | 'videoFileToken' | 'requiresPassword' |
-  'isLive' | 'liveOptions' | 'p2pEnabled' | 'hls'>
+  & Pick<PeerTubePlayerConstructorOptions, 'pluginsManager' | 'serverUrl' | 'authorizationHeader' | 'stunServers'>
+  & Pick<
+    PeerTubePlayerLoadOptions,
+    'videoPassword' | 'requiresUserAuth' | 'videoFileToken' | 'requiresPassword' | 'isLive' | 'liveOptions' | 'p2pEnabled' | 'hls'
+  >
 
 export class HLSOptionsBuilder {
-
   constructor (private options: ConstructorOptions) {
-
   }
 
   async getPluginOptions () {

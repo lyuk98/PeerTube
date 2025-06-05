@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
-import { checkBadCountPagination, checkBadSortPagination, checkBadStartPagination } from '@tests/shared/checks.js'
-import { MockSmtpServer } from '@tests/shared/mock-servers/index.js'
-import { buildAbsoluteFixturePath } from '@peertube/peertube-node-utils'
 import { HttpStatusCode, UserRole, VideoCreateResult } from '@peertube/peertube-models'
+import { buildAbsoluteFixturePath } from '@peertube/peertube-node-utils'
 import {
   cleanupTests,
   createSingleServer,
@@ -14,6 +12,8 @@ import {
   setAccessTokensToServers,
   UsersCommand
 } from '@peertube/peertube-server-commands'
+import { checkBadCountPagination, checkBadSortPagination, checkBadStartPagination } from '@tests/shared/checks.js'
+import { MockSmtpServer } from '@tests/shared/mock-servers/index.js'
 
 describe('Test my user API validators', function () {
   const path = '/api/v1/users/'
@@ -23,6 +23,7 @@ describe('Test my user API validators', function () {
   let video: VideoCreateResult
   let server: PeerTubeServer
   let userToken = ''
+  let anotherUserToken = ''
   let moderatorToken = ''
 
   // ---------------------------------------------------------------
@@ -49,6 +50,10 @@ describe('Test my user API validators', function () {
     {
       const result = await server.users.generate('moderator2', UserRole.MODERATOR)
       moderatorId = result.userId
+    }
+
+    {
+      anotherUserToken = await server.users.generateUserAndToken('user2')
     }
 
     {
@@ -146,6 +151,36 @@ describe('Test my user API validators', function () {
       }
 
       await makePutBodyRequest({ url: server.url, path: path + 'me', token: userToken, fields })
+    })
+
+    it('Should fail with an invalid NSFW flags attribute', async function () {
+      for (const key of [ 'nsfwFlagsDisplayed', 'nsfwFlagsHidden', 'nsfwFlagsBlurred', 'nsfwFlagsWarned' ]) {
+        const fields = {
+          [key]: 'hello'
+        }
+
+        await makePutBodyRequest({ url: server.url, path: path + 'me', token: userToken, fields })
+      }
+    })
+
+    it('Should fail with a conflicted NSFW flags attributes', async function () {
+      {
+        const fields = {
+          nsfwFlagsDisplayed: 1,
+          nsfwFlagsWarned: 1
+        }
+
+        await makePutBodyRequest({ url: server.url, path: path + 'me', token: userToken, fields })
+      }
+
+      {
+        const fields = {
+          nsfwFlagsHidden: 1,
+          nsfwFlagsBlurred: 1
+        }
+
+        await makePutBodyRequest({ url: server.url, path: path + 'me', token: userToken, fields })
+      }
     })
 
     it('Should fail with an invalid autoPlayVideo attribute', async function () {
@@ -248,7 +283,11 @@ describe('Test my user API validators', function () {
       const fields = {
         currentPassword: 'password',
         password: 'my super password',
-        nsfwPolicy: 'blur',
+        nsfwPolicy: 'warn',
+        nsfwFlagsDisplayed: 0,
+        nsfwFlagsHidden: 1,
+        nsfwFlagsWarned: 2,
+        nsfwFlagsBlurred: 0,
         autoPlayVideo: false,
         email: 'super_email@example.com',
         theme: 'default',
@@ -268,7 +307,7 @@ describe('Test my user API validators', function () {
 
     it('Should succeed without password change with the correct params', async function () {
       const fields = {
-        nsfwPolicy: 'blur',
+        nsfwPolicy: 'warn',
         autoPlayVideo: false
       }
 
@@ -411,7 +450,7 @@ describe('Test my user API validators', function () {
     })
 
     it('Should fail with a another user', async function () {
-      await makeGetRequest({ url: server.url, path, token: server.accessToken, expectedStatus: HttpStatusCode.FORBIDDEN_403 })
+      await makeGetRequest({ url: server.url, path, token: anotherUserToken, expectedStatus: HttpStatusCode.FORBIDDEN_403 })
     })
 
     it('Should fail with a bad type', async function () {
@@ -449,7 +488,7 @@ describe('Test my user API validators', function () {
     })
 
     it('Should fail with a another user', async function () {
-      await makeGetRequest({ url: server.url, path, token: server.accessToken, expectedStatus: HttpStatusCode.FORBIDDEN_403 })
+      await makeGetRequest({ url: server.url, path, token: anotherUserToken, expectedStatus: HttpStatusCode.FORBIDDEN_403 })
     })
 
     it('Should succeed with the correct params', async function () {

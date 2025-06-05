@@ -51,7 +51,11 @@ export interface Video extends Partial<VideoAdditionalAttributes> {
 
   likes: number
   dislikes: number
+  comments: number
+
   nsfw: boolean
+  nsfwFlags: number
+  nsfwSummary: string
 
   account: AccountSummary
   channel: VideoChannelSummary

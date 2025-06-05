@@ -786,24 +786,27 @@ paths:
       operationId: getAccountVideos
       parameters:
         - $ref: '#/components/parameters/name'
-        - $ref: '#/components/parameters/categoryOneOf'
-        - $ref: '#/components/parameters/isLive'
-        - $ref: '#/components/parameters/tagsOneOf'
-        - $ref: '#/components/parameters/tagsAllOf'
-        - $ref: '#/components/parameters/licenceOneOf'
-        - $ref: '#/components/parameters/languageOneOf'
-        - $ref: '#/components/parameters/autoTagOneOfVideo'
-        - $ref: '#/components/parameters/nsfw'
-        - $ref: '#/components/parameters/host'
-        - $ref: '#/components/parameters/isLocal'
-        - $ref: '#/components/parameters/include'
-        - $ref: '#/components/parameters/privacyOneOf'
-        - $ref: '#/components/parameters/hasHLSFiles'
-        - $ref: '#/components/parameters/hasWebVideoFiles'
-        - $ref: '#/components/parameters/skipCount'
+        # Common video filter parameters
         - $ref: '#/components/parameters/start'
         - $ref: '#/components/parameters/count'
+        - $ref: '#/components/parameters/skipCount'
         - $ref: '#/components/parameters/videosSort'
+        - $ref: '#/components/parameters/nsfw'
+        - $ref: '#/components/parameters/nsfwFlagsIncluded'
+        - $ref: '#/components/parameters/nsfwFlagsExcluded'
+        - $ref: '#/components/parameters/isLive'
+        - $ref: '#/components/parameters/categoryOneOf'
+        - $ref: '#/components/parameters/licenceOneOf'
+        - $ref: '#/components/parameters/languageOneOf'
+        - $ref: '#/components/parameters/tagsOneOf'
+        - $ref: '#/components/parameters/tagsAllOf'
+        - $ref: '#/components/parameters/isLocal'
+        - $ref: '#/components/parameters/include'
+        - $ref: '#/components/parameters/hasHLSFiles'
+        - $ref: '#/components/parameters/hasWebVideoFiles'
+        - $ref: '#/components/parameters/host'
+        - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/excludeAlreadyWatched'
         - $ref: '#/components/parameters/search'
       responses:
@@ -1202,7 +1205,7 @@ paths:
                     items:
                       $ref: '#/components/schemas/Follow'
 
-  '/api/v1/server/followers/{nameWithHost}':
+  '/api/v1/server/followers/{handle}':
     delete:
       summary: Remove or reject a follower to your server
       security:
@@ -1211,7 +1214,7 @@ paths:
       tags:
         - Instance Follows
       parameters:
-        - name: nameWithHost
+        - name: handle
           in: path
           required: true
           description: The remote actor handle to remove from your followers
@@ -1224,7 +1227,7 @@ paths:
         '404':
           description: follower not found
 
-  '/api/v1/server/followers/{nameWithHost}/reject':
+  '/api/v1/server/followers/{handle}/reject':
     post:
       summary: Reject a pending follower to your server
       security:
@@ -1233,7 +1236,7 @@ paths:
       tags:
         - Instance Follows
       parameters:
-        - name: nameWithHost
+        - name: handle
           in: path
           required: true
           description: The remote actor handle to remove from your followers
@@ -1246,7 +1249,7 @@ paths:
         '404':
           description: follower not found
 
-  '/api/v1/server/followers/{nameWithHost}/accept':
+  '/api/v1/server/followers/{handle}/accept':
     post:
       summary: Accept a pending follower to your server
       security:
@@ -1255,7 +1258,7 @@ paths:
       tags:
         - Instance Follows
       parameters:
-        - name: nameWithHost
+        - name: handle
           in: path
           required: true
           description: The remote actor handle to remove from your followers
@@ -1618,7 +1621,7 @@ paths:
 
   /api/v1/users/registrations/ask-send-verify-email:
     post:
-      summary: Resend verification link to registration email
+      summary: Resend verification link to registration request email
       operationId: resendEmailToVerifyRegistration
       tags:
         - Register
@@ -1700,6 +1703,56 @@ paths:
           description: invalid verification string
         '404':
           description: registration not found
+
+  /api/v1/users/ask-reset-password:
+    post:
+      summary: Ask to reset password
+      description: An email containing a reset password link
+      tags:
+        - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: User email
+              required:
+                - email
+      responses:
+        '204':
+          description: successful operation
+
+  /api/v1/users/{id}/reset-password:
+    post:
+      summary: Reset password
+      tags:
+        - Users
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                verificationString:
+                  type: string
+                  format: url
+                password:
+                  type: string
+              required:
+                - verificationString
+                - password
+      responses:
+        '204':
+          description: successful operation
+        '403':
+          description: invalid verification string
+        '404':
+          description: user not found
 
   /api/v1/users/{id}/two-factor/request:
     post:
@@ -2176,9 +2229,30 @@ paths:
         - My User
         - Videos
       parameters:
+        - $ref: '#/components/parameters/channelNameOneOf'
+        # Common video filter parameters
         - $ref: '#/components/parameters/start'
         - $ref: '#/components/parameters/count'
-        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/skipCount'
+        - $ref: '#/components/parameters/videosSort'
+        - $ref: '#/components/parameters/nsfw'
+        - $ref: '#/components/parameters/nsfwFlagsIncluded'
+        - $ref: '#/components/parameters/nsfwFlagsExcluded'
+        - $ref: '#/components/parameters/isLive'
+        - $ref: '#/components/parameters/categoryOneOf'
+        - $ref: '#/components/parameters/licenceOneOf'
+        - $ref: '#/components/parameters/languageOneOf'
+        - $ref: '#/components/parameters/tagsOneOf'
+        - $ref: '#/components/parameters/tagsAllOf'
+        - $ref: '#/components/parameters/isLocal'
+        - $ref: '#/components/parameters/include'
+        - $ref: '#/components/parameters/hasHLSFiles'
+        - $ref: '#/components/parameters/hasWebVideoFiles'
+        - $ref: '#/components/parameters/host'
+        - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/privacyOneOf'
+        - $ref: '#/components/parameters/excludeAlreadyWatched'
+        - $ref: '#/components/parameters/search'
       responses:
         '200':
           description: successful operation
@@ -2230,7 +2304,7 @@ paths:
                 value:
                   uri: 008a0e54-375d-49d0-8379-143202e24152@video.lqdn.fr
       responses:
-        '200':
+        '204':
           description: successful operation
 
   /api/v1/users/me/subscriptions/exist:
@@ -2261,24 +2335,27 @@ paths:
         - My Subscriptions
         - Videos
       parameters:
-        - $ref: '#/components/parameters/categoryOneOf'
-        - $ref: '#/components/parameters/isLive'
-        - $ref: '#/components/parameters/tagsOneOf'
-        - $ref: '#/components/parameters/tagsAllOf'
-        - $ref: '#/components/parameters/licenceOneOf'
-        - $ref: '#/components/parameters/languageOneOf'
-        - $ref: '#/components/parameters/host'
-        - $ref: '#/components/parameters/autoTagOneOfVideo'
-        - $ref: '#/components/parameters/nsfw'
-        - $ref: '#/components/parameters/isLocal'
-        - $ref: '#/components/parameters/include'
-        - $ref: '#/components/parameters/privacyOneOf'
-        - $ref: '#/components/parameters/hasHLSFiles'
-        - $ref: '#/components/parameters/hasWebVideoFiles'
-        - $ref: '#/components/parameters/skipCount'
+        # Common video filter parameters
         - $ref: '#/components/parameters/start'
         - $ref: '#/components/parameters/count'
+        - $ref: '#/components/parameters/skipCount'
         - $ref: '#/components/parameters/videosSort'
+        - $ref: '#/components/parameters/nsfw'
+        - $ref: '#/components/parameters/nsfwFlagsIncluded'
+        - $ref: '#/components/parameters/nsfwFlagsExcluded'
+        - $ref: '#/components/parameters/isLive'
+        - $ref: '#/components/parameters/categoryOneOf'
+        - $ref: '#/components/parameters/licenceOneOf'
+        - $ref: '#/components/parameters/languageOneOf'
+        - $ref: '#/components/parameters/tagsOneOf'
+        - $ref: '#/components/parameters/tagsAllOf'
+        - $ref: '#/components/parameters/isLocal'
+        - $ref: '#/components/parameters/include'
+        - $ref: '#/components/parameters/hasHLSFiles'
+        - $ref: '#/components/parameters/hasWebVideoFiles'
+        - $ref: '#/components/parameters/host'
+        - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/excludeAlreadyWatched'
         - $ref: '#/components/parameters/search'
       responses:
@@ -2316,7 +2393,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/subscriptionHandle'
       responses:
-        '200':
+        '204':
           description: successful operation
 
   /api/v1/users/me/notifications:
@@ -2836,24 +2913,27 @@ paths:
       tags:
         - Video
       parameters:
-        - $ref: '#/components/parameters/categoryOneOf'
-        - $ref: '#/components/parameters/isLive'
-        - $ref: '#/components/parameters/tagsOneOf'
-        - $ref: '#/components/parameters/tagsAllOf'
-        - $ref: '#/components/parameters/licenceOneOf'
-        - $ref: '#/components/parameters/languageOneOf'
-        - $ref: '#/components/parameters/host'
-        - $ref: '#/components/parameters/autoTagOneOfVideo'
-        - $ref: '#/components/parameters/nsfw'
-        - $ref: '#/components/parameters/isLocal'
-        - $ref: '#/components/parameters/include'
-        - $ref: '#/components/parameters/privacyOneOf'
-        - $ref: '#/components/parameters/hasHLSFiles'
-        - $ref: '#/components/parameters/hasWebVideoFiles'
-        - $ref: '#/components/parameters/skipCount'
+        # Common video filter parameters
         - $ref: '#/components/parameters/start'
         - $ref: '#/components/parameters/count'
+        - $ref: '#/components/parameters/skipCount'
         - $ref: '#/components/parameters/videosSort'
+        - $ref: '#/components/parameters/nsfw'
+        - $ref: '#/components/parameters/nsfwFlagsIncluded'
+        - $ref: '#/components/parameters/nsfwFlagsExcluded'
+        - $ref: '#/components/parameters/isLive'
+        - $ref: '#/components/parameters/categoryOneOf'
+        - $ref: '#/components/parameters/licenceOneOf'
+        - $ref: '#/components/parameters/languageOneOf'
+        - $ref: '#/components/parameters/tagsOneOf'
+        - $ref: '#/components/parameters/tagsAllOf'
+        - $ref: '#/components/parameters/isLocal'
+        - $ref: '#/components/parameters/include'
+        - $ref: '#/components/parameters/hasHLSFiles'
+        - $ref: '#/components/parameters/hasWebVideoFiles'
+        - $ref: '#/components/parameters/host'
+        - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/excludeAlreadyWatched'
         - $ref: '#/components/parameters/search'
       responses:
@@ -2988,6 +3068,10 @@ paths:
                 nsfw:
                   description: Whether or not this video contains sensitive content
                   type: boolean
+                nsfwSummary:
+                  description: More information about the sensitive content of the video
+                nsfwFlags:
+                  $ref: '#/components/schemas/NSFWFlag'
                 name:
                   description: Video name
                   type: string
@@ -3145,6 +3229,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VideoStatsOverall'
+
+  '/api/v1/videos/{id}/stats/user-agent':
+    get:
+      summary: Get user agent stats of a video
+      tags:
+        - Video Stats
+      security:
+        - OAuth2: []
+      parameters:
+        - $ref: '#/components/parameters/idOrUUID'
+        - name: startDate
+          in: query
+          description: Filter stats by start date
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          description: Filter stats by end date
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoStatsUserAgent'
 
   '/api/v1/videos/{id}/stats/retention':
     get:
@@ -3546,6 +3659,10 @@ paths:
                 nsfw:
                   description: Whether or not this live video/replay contains sensitive content
                   type: boolean
+                nsfwSummary:
+                  description: More information about the sensitive content of the video
+                nsfwFlags:
+                  $ref: '#/components/schemas/NSFWFlag'
                 name:
                   description: Live video/replay name
                   type: string
@@ -4537,24 +4654,27 @@ paths:
         - Video Channels
       parameters:
         - $ref: '#/components/parameters/channelHandle'
-        - $ref: '#/components/parameters/categoryOneOf'
-        - $ref: '#/components/parameters/isLive'
-        - $ref: '#/components/parameters/tagsOneOf'
-        - $ref: '#/components/parameters/tagsAllOf'
-        - $ref: '#/components/parameters/licenceOneOf'
-        - $ref: '#/components/parameters/languageOneOf'
-        - $ref: '#/components/parameters/host'
-        - $ref: '#/components/parameters/autoTagOneOfVideo'
-        - $ref: '#/components/parameters/nsfw'
-        - $ref: '#/components/parameters/isLocal'
-        - $ref: '#/components/parameters/include'
-        - $ref: '#/components/parameters/privacyOneOf'
-        - $ref: '#/components/parameters/hasHLSFiles'
-        - $ref: '#/components/parameters/hasWebVideoFiles'
-        - $ref: '#/components/parameters/skipCount'
+        # Common video filter parameters
         - $ref: '#/components/parameters/start'
         - $ref: '#/components/parameters/count'
+        - $ref: '#/components/parameters/skipCount'
         - $ref: '#/components/parameters/videosSort'
+        - $ref: '#/components/parameters/nsfw'
+        - $ref: '#/components/parameters/nsfwFlagsIncluded'
+        - $ref: '#/components/parameters/nsfwFlagsExcluded'
+        - $ref: '#/components/parameters/isLive'
+        - $ref: '#/components/parameters/categoryOneOf'
+        - $ref: '#/components/parameters/licenceOneOf'
+        - $ref: '#/components/parameters/languageOneOf'
+        - $ref: '#/components/parameters/tagsOneOf'
+        - $ref: '#/components/parameters/tagsAllOf'
+        - $ref: '#/components/parameters/isLocal'
+        - $ref: '#/components/parameters/include'
+        - $ref: '#/components/parameters/hasHLSFiles'
+        - $ref: '#/components/parameters/hasWebVideoFiles'
+        - $ref: '#/components/parameters/host'
+        - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/excludeAlreadyWatched'
         - $ref: '#/components/parameters/search'
       responses:
@@ -4992,7 +5112,36 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VideoListResponse'
+                properties:
+                  total:
+                    type: integer
+                    example: 1
+                  data:
+                    type: array
+                    maxItems: 100
+                    items:
+                    
+                      type: object
+                      properties:
+                        id:
+                          description: object id for the video
+                          allOf:
+                            - $ref: '#/components/schemas/id'
+                        position:
+                          type: integer
+                          example: 2
+                        startTimestamp:
+                          type: integer
+                          nullable: true
+                          example: 10
+                          format: seconds
+                        stopTimestamp:
+                          type: integer
+                          nullable: true
+                          example: 42
+                          format: seconds
+                        video:
+                          $ref: '#/components/schemas/Video'
     post:
       summary: Add a video in a playlist
       operationId: addVideoPlaylistVideo
@@ -5152,8 +5301,11 @@ paths:
                         startTimestamp:
                           type: integer
                           format: seconds
+                          nullable: true
                         stopTimestamp:
                           type: integer
+                          format: seconds
+                          nullable: true
 
   '/api/v1/accounts/{name}/video-playlists':
     get:
@@ -5542,27 +5694,30 @@ paths:
             you can use the REST API to fetch the complete video information and interact with it.
           schema:
             type: string
-        - $ref: '#/components/parameters/categoryOneOf'
-        - $ref: '#/components/parameters/isLive'
-        - $ref: '#/components/parameters/tagsOneOf'
-        - $ref: '#/components/parameters/tagsAllOf'
-        - $ref: '#/components/parameters/licenceOneOf'
-        - $ref: '#/components/parameters/languageOneOf'
-        - $ref: '#/components/parameters/autoTagOneOfVideo'
-        - $ref: '#/components/parameters/nsfw'
-        - $ref: '#/components/parameters/isLocal'
-        - $ref: '#/components/parameters/include'
-        - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/uuids'
-        - $ref: '#/components/parameters/hasHLSFiles'
-        - $ref: '#/components/parameters/hasWebVideoFiles'
-        - $ref: '#/components/parameters/skipCount'
+        - $ref: '#/components/parameters/searchTarget'
+        # Common video filter parameters
         - $ref: '#/components/parameters/start'
         - $ref: '#/components/parameters/count'
-        - $ref: '#/components/parameters/searchTarget'
-        - $ref: '#/components/parameters/videosSearchSort'
-        - $ref: '#/components/parameters/excludeAlreadyWatched'
+        - $ref: '#/components/parameters/skipCount'
+        - $ref: '#/components/parameters/videosSort'
+        - $ref: '#/components/parameters/nsfw'
+        - $ref: '#/components/parameters/nsfwFlagsIncluded'
+        - $ref: '#/components/parameters/nsfwFlagsExcluded'
+        - $ref: '#/components/parameters/isLive'
+        - $ref: '#/components/parameters/categoryOneOf'
+        - $ref: '#/components/parameters/licenceOneOf'
+        - $ref: '#/components/parameters/languageOneOf'
+        - $ref: '#/components/parameters/tagsOneOf'
+        - $ref: '#/components/parameters/tagsAllOf'
+        - $ref: '#/components/parameters/isLocal'
+        - $ref: '#/components/parameters/include'
+        - $ref: '#/components/parameters/hasHLSFiles'
+        - $ref: '#/components/parameters/hasWebVideoFiles'
         - $ref: '#/components/parameters/host'
+        - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/privacyOneOf'
+        - $ref: '#/components/parameters/excludeAlreadyWatched'
         - name: startDate
           in: query
           description: Get videos that are published after this date
@@ -7168,6 +7323,7 @@ components:
           - -publishedAt
           - -views
           - -likes
+          - -comments
           - -trending
           - -hot
           - -best
@@ -7490,6 +7646,19 @@ components:
             type: string
       style: form
       explode: true
+    channelNameOneOf:
+      name: channelNameOneOf
+      in: query
+      required: false
+      description: "**PeerTube >= 7.2** Filter on videos that are published by a channel with one of these names"
+      schema:
+        oneOf:
+        - type: string
+        - type: array
+          items:
+            type: string
+      style: form
+      explode: true
     autoTagOneOfComment:
       name: autoTagOneOf
       in: query
@@ -7538,13 +7707,24 @@ components:
       name: nsfw
       in: query
       required: false
-      description: Whether to include nsfw videos, if any. The default value is set by the admin.
+      description: whether to include nsfw videos, if any
       schema:
         type: string
         enum:
         - 'true'
         - 'false'
-        - 'both'
+    nsfwFlagsIncluded:
+      name: nsfwFlagsIncluded
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/NSFWFlag'
+    nsfwFlagsExcluded:
+      name: nsfwFlagsExcluded
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/NSFWFlag'
     isLocal:
       name: isLocal
       in: query
@@ -7571,27 +7751,8 @@ components:
       in: query
       required: false
       schema:
-        allOf:
-         - $ref: '#/components/schemas/VideoPrivacySet'
-      description: >
-        **Only administrators and moderators can use this parameter**
-
-
-        Display only videos in this specific privacy/privacies. By default, list public videos for anonymous users and public/internal videos for authenticated users
-
-        - `1` PUBLIC
-
-        - `2` UNLISTED
-
-        - `3` PRIVATE
-
-        - `4` INTERNAL
-
-        - `5` PASSWORD_PROTECTED
-      examples:
-        password:
-          value: 5
-          summary: Display only password protected videos
+        $ref: '#/components/schemas/VideoPrivacySet'
+      description: '**PeerTube >= 4.0** Display only videos in this specific privacy/privacies'
     excludeAlreadyWatched:
       name: excludeAlreadyWatched
       in: query
@@ -7635,14 +7796,11 @@ components:
         - 8
         - 16
         - 32
-        - 64
-        - 128
       description: >
         **Only administrators and moderators can use this parameter**
 
 
-        Include additional videos in results (can be combined using bitwise or operator).
-        By default PeerTube only list published videos that are not blocked.
+        Include additional videos in results (can be combined using bitwise or operator)
 
         - `0` NONE
 
@@ -7657,17 +7815,6 @@ components:
         - `16` CAPTIONS
 
         - `32` VIDEO SOURCE
-
-        - `64`: AUTOMATIC_TAGS
-
-        - `128`: TAGS
-      examples:
-        includeAll:
-          value: 3
-          summary: Include not published and blacklisted videos (1 + 2)
-        includeAllWithFiles:
-          value: 24
-          summary: Add files and captions to video JSON representation (8 + 16)
     subscriptionsUris:
       name: uris
       in: query
@@ -8050,8 +8197,25 @@ components:
       type: string
       enum:
         - display
-        - blur
+        - warn
         - do_not_list
+
+    NSFWFlag:
+      type: integer
+      enum:
+        - 0
+        - 1
+        - 2
+        - 4
+      description: >
+
+        NSFW flags (can be combined using bitwise or operator)
+
+        - `0` NONE
+
+        - `1` VIOLENT
+
+        - `2` EXPLICIT_SEX
 
     UserRole:
       type: integer
@@ -8448,8 +8612,17 @@ components:
         dislikes:
           type: integer
           example: 7
+        comments:
+          description: "**PeerTube >= 7.2** Number of comments on the video"
+          type: integer
         nsfw:
           type: boolean
+        nsfwFlags:
+          allOf:
+            - $ref: '#/components/schemas/NSFWFlag'
+        nsfwSummary:
+          type: string
+          description: "**PeerTube >= 7.2** More information about the sensitive content of the video"
         waitTranscoding:
           type: boolean
           nullable: true
@@ -8733,7 +8906,32 @@ components:
           minLength: 2
           maxLength: 3000
         video:
-          $ref: '#/components/schemas/VideoInfo'
+          type: object
+          properties:
+            id:
+              type: integer
+            uuid:
+              $ref: '#/components/schemas/UUIDv4'
+            shortUUID:
+              $ref: '#/components/schemas/shortUUID'
+            name:
+              type: string
+            nsfw:
+              type: boolean
+            startAt:
+              type: string
+              format: date-time
+            endAt:
+              type: string
+              format: date-time
+            deleted:
+              type: boolean
+            blacklisted:
+              type: boolean
+            thumbnailPath:
+              type: string
+            channel:
+              $ref: '#/components/schemas/VideoChannel'
         createdAt:
           type: string
           format: date-time
@@ -9009,6 +9207,7 @@ components:
           description: server on which the actor is resident
         hostRedundancyAllowed:
           type: boolean
+          nullable: true
           description: whether this actor's host allows redundancy of its videos
         followingCount:
           type: integer
@@ -9064,7 +9263,18 @@ components:
             Optional param to represent the current viewer session.
             Used by the backend to properly count one view per session per video.
             PeerTube admin can configure the server to not trust this `sessionId` parameter but use the request IP address instead to identify a viewer.
-
+        client:
+          type: string
+          description: >
+            Client software used to watch the video. For example "Firefox", "PeerTube Approval Android", etc.
+        device:
+          $ref: '#/components/schemas/VideoStatsUserAgentDevice'
+          description: >
+            Device used to watch the video. For example "desktop", "mobile", "smarttv", etc.
+        operatingSystem:
+          type: string
+          description: >
+            Operating system used to watch the video. For example "Windows", "Ubuntu", etc.
 
     VideoStatsOverall:
       properties:
@@ -9083,6 +9293,47 @@ components:
             type: object
             properties:
               isoCode:
+                type: string
+              viewers:
+                type: number
+
+    VideoStatsUserAgentDevice:
+      enum:
+        - 'console'
+        - 'embedded'
+        - 'mobile'
+        - 'smarttv'
+        - 'tablet'
+        - 'wearable'
+        - 'xr'
+        - 'desktop'
+
+    VideoStatsUserAgent:
+      properties:
+        clients:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              viewers:
+                type: number
+        devices:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                $ref: '#/components/schemas/VideoStatsUserAgentDevice'
+              viewers:
+                type: number
+        operatingSystem:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
                 type: string
               viewers:
                 type: number
@@ -9886,6 +10137,7 @@ components:
               properties:
                 id:
                   $ref: '#/components/schemas/id'
+
     VideoUploadRequestCommon:
       properties:
         name:
@@ -9925,6 +10177,10 @@ components:
         nsfw:
           description: Whether or not this video contains sensitive content
           type: boolean
+        nsfwSummary:
+            description: More information about the sensitive content of the video
+        nsfwFlags:
+          $ref: '#/components/schemas/NSFWFlag'
         tags:
           description: Video tags (maximum 5 tags each between 2 and 30 characters)
           type: array
@@ -10101,8 +10357,18 @@ components:
           type: boolean
         noWelcomeModal:
           type: boolean
+
         nsfwPolicy:
           $ref: '#/components/schemas/NSFWPolicy'
+        nsfwFlagsDisplayed:
+          $ref: '#/components/schemas/NSFWFlag'
+        nsfwFlagsHidden:
+          $ref: '#/components/schemas/NSFWFlag'
+        nsfwFlagsWarned:
+          $ref: '#/components/schemas/NSFWFlag'
+        nsfwFlagsBlurred:
+          $ref: '#/components/schemas/NSFWFlag'
+
         role:
           type: object
           properties:
@@ -10224,13 +10490,21 @@ components:
           description: new name of the user in its representations
           minLength: 3
           maxLength: 120
-        displayNSFW:
+        nsfwPolicy:
           type: string
           description: new NSFW display policy
           enum:
             - 'true'
             - 'false'
             - both
+        nsfwFlagsDisplayed:
+          $ref: '#/components/schemas/NSFWFlag'
+        nsfwFlagsHidden:
+          $ref: '#/components/schemas/NSFWFlag'
+        nsfwFlagsWarned:
+          $ref: '#/components/schemas/NSFWFlag'
+        nsfwFlagsBlurred:
+          $ref: '#/components/schemas/NSFWFlag'
         p2pEnabled:
           type: boolean
           description: whether to enable P2P in the player or not

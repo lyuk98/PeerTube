@@ -1,8 +1,8 @@
 import { logger } from '@server/helpers/logger.js'
 import { CONFIG } from '@server/initializers/config.js'
-import { MStreamingPlaylistVideo, MVideo, MVideoCaption, MVideoFile } from '@server/types/models/index.js'
+import { MStreamingPlaylistVideo, MStreamingPlaylistVideoUUID, MVideo, MVideoCaption, MVideoFile } from '@server/types/models/index.js'
 import { MVideoSource } from '@server/types/models/video/video-source.js'
-import { basename, join } from 'path'
+import { basename, extname, join } from 'path'
 import { getHLSDirectory } from '../paths.js'
 import { VideoPathManager } from '../video-path-manager.js'
 import {
@@ -25,6 +25,7 @@ import {
   updateObjectACL,
   updatePrefixACL
 } from './shared/index.js'
+import { MIMETYPES } from '@server/initializers/constants.js'
 
 export function listHLSFileKeysOf (playlist: MStreamingPlaylistVideo) {
   return listKeysOfPrefix(generateHLSObjectBaseStorageKey(playlist), CONFIG.OBJECT_STORAGE.STREAMING_PLAYLISTS)
@@ -37,25 +38,38 @@ export function storeHLSFileFromFilename (playlist: MStreamingPlaylistVideo, fil
     inputPath: join(getHLSDirectory(playlist.Video), filename),
     objectStorageKey: generateHLSObjectStorageKey(playlist, filename),
     bucketInfo: CONFIG.OBJECT_STORAGE.STREAMING_PLAYLISTS,
-    isPrivate: playlist.Video.hasPrivateStaticPath()
+    isPrivate: playlist.Video.hasPrivateStaticPath(),
+    contentType: getObjectStorageContentType(filename)
   })
 }
 
 export function storeHLSFileFromPath (playlist: MStreamingPlaylistVideo, path: string) {
+  const filename = basename(path)
+
   return storeObject({
     inputPath: path,
-    objectStorageKey: generateHLSObjectStorageKey(playlist, basename(path)),
+    objectStorageKey: generateHLSObjectStorageKey(playlist, filename),
     bucketInfo: CONFIG.OBJECT_STORAGE.STREAMING_PLAYLISTS,
-    isPrivate: playlist.Video.hasPrivateStaticPath()
+    isPrivate: playlist.Video.hasPrivateStaticPath(),
+    contentType: getObjectStorageContentType(filename)
   })
 }
 
-export function storeHLSFileFromContent (playlist: MStreamingPlaylistVideo, pathOrFilename: string, content: string) {
+export function storeHLSFileFromContent (options: {
+  playlist: MStreamingPlaylistVideo
+  pathOrFilename: string
+  content: string
+}) {
+  const { playlist, pathOrFilename, content } = options
+
+  const filename = basename(pathOrFilename)
+
   return storeContent({
     content,
-    objectStorageKey: generateHLSObjectStorageKey(playlist, basename(pathOrFilename)),
+    objectStorageKey: generateHLSObjectStorageKey(playlist, filename),
     bucketInfo: CONFIG.OBJECT_STORAGE.STREAMING_PLAYLISTS,
-    isPrivate: playlist.Video.hasPrivateStaticPath()
+    isPrivate: playlist.Video.hasPrivateStaticPath(),
+    contentType: getObjectStorageContentType(filename)
   })
 }
 
@@ -66,7 +80,8 @@ export function storeWebVideoFile (video: MVideo, file: MVideoFile) {
     inputPath: VideoPathManager.Instance.getFSVideoFileOutputPath(video, file),
     objectStorageKey: generateWebVideoObjectStorageKey(file.filename),
     bucketInfo: CONFIG.OBJECT_STORAGE.WEB_VIDEOS,
-    isPrivate: video.hasPrivateStaticPath()
+    isPrivate: video.hasPrivateStaticPath(),
+    contentType: getObjectStorageContentType(file.filename)
   })
 }
 
@@ -78,7 +93,7 @@ export function storeVideoCaption (inputPath: string, filename: string) {
     objectStorageKey: generateCaptionObjectStorageKey(filename),
     bucketInfo: CONFIG.OBJECT_STORAGE.CAPTIONS,
     isPrivate: false,
-    contentType: 'text/vtt; charset=UTF-8'
+    contentType: getObjectStorageContentType(filename)
   })
 }
 
@@ -89,7 +104,8 @@ export function storeOriginalVideoFile (inputPath: string, filename: string) {
     inputPath,
     objectStorageKey: generateOriginalVideoObjectStorageKey(filename),
     bucketInfo: CONFIG.OBJECT_STORAGE.ORIGINAL_VIDEO_FILES,
-    isPrivate: true
+    isPrivate: true,
+    contentType: getObjectStorageContentType(filename)
   })
 }
 
@@ -113,15 +129,15 @@ export async function updateHLSFilesACL (playlist: MStreamingPlaylistVideo) {
 
 // ---------------------------------------------------------------------------
 
-export function removeHLSObjectStorage (playlist: MStreamingPlaylistVideo) {
+export function removeHLSObjectStorage (playlist: MStreamingPlaylistVideoUUID) {
   return removePrefix(generateHLSObjectBaseStorageKey(playlist), CONFIG.OBJECT_STORAGE.STREAMING_PLAYLISTS)
 }
 
-export function removeHLSFileObjectStorageByFilename (playlist: MStreamingPlaylistVideo, filename: string) {
+export function removeHLSFileObjectStorageByFilename (playlist: MStreamingPlaylistVideoUUID, filename: string) {
   return removeObject(generateHLSObjectStorageKey(playlist, filename), CONFIG.OBJECT_STORAGE.STREAMING_PLAYLISTS)
 }
 
-export function removeHLSFileObjectStorageByPath (playlist: MStreamingPlaylistVideo, path: string) {
+export function removeHLSFileObjectStorageByPath (playlist: MStreamingPlaylistVideoUUID, path: string) {
   return removeObject(generateHLSObjectStorageKey(playlist, basename(path)), CONFIG.OBJECT_STORAGE.STREAMING_PLAYLISTS)
 }
 
@@ -149,7 +165,7 @@ export function removeCaptionObjectStorage (videoCaption: MVideoCaption) {
 
 // ---------------------------------------------------------------------------
 
-export async function makeHLSFileAvailable (playlist: MStreamingPlaylistVideo, filename: string, destination: string) {
+export async function makeHLSFileAvailable (playlist: MStreamingPlaylistVideoUUID, filename: string, destination: string) {
   const key = generateHLSObjectStorageKey(playlist, filename)
 
   logger.info('Fetching HLS file %s from object storage to %s.', key, destination, lTags())
@@ -268,4 +284,26 @@ export function getCaptionReadStream (options: {
     bucketInfo: CONFIG.OBJECT_STORAGE.CAPTIONS,
     rangeHeader
   })
+}
+
+// ---------------------------------------------------------------------------
+// Private
+// ---------------------------------------------------------------------------
+
+function getObjectStorageContentType (filename: string) {
+  if (filename.endsWith('.m3u8')) {
+    return 'application/x-mpegURL; charset=utf-8'
+  }
+
+  if (filename.endsWith('.json')) {
+    return 'application/json; charset=utf-8'
+  }
+
+  if (filename.endsWith('.vtt')) {
+    return 'text/vtt; charset=utf-8'
+  }
+
+  const ext = extname(filename).toLowerCase()
+
+  return MIMETYPES.VIDEO.EXT_MIMETYPE[ext] || MIMETYPES.AUDIO.EXT_MIMETYPE[ext]
 }

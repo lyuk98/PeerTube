@@ -229,6 +229,8 @@ object_storage:
   max_request_attempts: 3
 
   streaming_playlists:
+    # Bucket name created on your object storage provider
+    # PeerTube will access it via {bucket_name}.example.com
     bucket_name: 'streaming-playlists'
 
     # Allows setting all buckets to the same value but with a different prefix
@@ -242,7 +244,7 @@ object_storage:
     # which can be a problem depending on your object storage provider
     # You can also choose to disable this feature to reduce live streams latency
     # Live stream replays are not affected by this setting, so they are uploaded in object storage as regular VOD videos
-    store_live_streams: true
+    store_live_streams: false
 
   web_videos:
     bucket_name: 'web-videos'
@@ -323,7 +325,7 @@ trending:
         - 'most-viewed' # Number of views in the last x days
         - 'most-liked' # Global views since the upload of the video
 
-      default: 'most-viewed'
+      default: 'hot'
 
 # Cache remote videos on your server, to help other instances to broadcast the video
 # You can define multiple caches using different sizes/strategies
@@ -532,6 +534,17 @@ webrtc:
   stun_servers:
     - 'stun:stunserver2024.stunprotocol.org'
     - 'stun:stun.framasoft.org'
+
+nsfw_flags_settings:
+  # Allow logged-in/anonymous users to have a more granular control over their NSFW policy
+  # using NSFW flags (violent content, etc.) set by video authors
+  enabled: true
+
+download_generate_video:
+  # Max parallel downloads on your instance
+  # Each download spawns an ffmpeg process
+  # The ffmpeg process ends when users have downloaded the entire file or cancelled the download
+  max_parallel_downloads: 100
 
 cache:
   previews:
@@ -957,7 +970,7 @@ instance:
   # Enabling it will allow other administrators to know that you are mainly federating sensitive content
   # Moreover, the NSFW checkbox on video upload will be automatically checked by default
   is_nsfw: false
-  # By default, `do_not_list` or `blur` or `display` NSFW videos
+  # By default, `do_not_list`, `blur`, `warn` or `display` NSFW videos
   # Could be overridden per user with a setting
   default_nsfw_policy: 'do_not_list'
 

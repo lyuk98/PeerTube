@@ -8,14 +8,13 @@ import { RestPagination } from './rest-pagination'
 
 const debugLogger = debug('peertube:tables:RestTable')
 
-export abstract class RestTable <T = unknown> {
-
+export abstract class RestTable<T = unknown> {
   abstract totalRecords: number
   abstract sort: SortMeta
   abstract pagination: RestPagination
 
-  rowsPerPageOptions = [ 10, 20, 50, 100 ]
-  rowsPerPage = this.rowsPerPageOptions[0]
+  rowsPerPageOptions = [ 5, 10, 20, 50, 100 ]
+  rowsPerPage = 10
   expandedRows = {}
 
   selectedRows: T[] = []
@@ -31,6 +30,8 @@ export abstract class RestTable <T = unknown> {
   // Inner Map is value -> badge name
   private valueToBadge = new Map<string, Map<string, string>>()
   private badgesUsed = new Set<string>()
+
+  private lastLazyLoadEvent: TableLazyLoadEvent
 
   abstract getIdentifier (): string
 
@@ -54,8 +55,21 @@ export abstract class RestTable <T = unknown> {
     peertubeLocalStorage.setItem(this.getSortLocalStorageKey(), JSON.stringify(this.sort))
   }
 
-  loadLazy (event: TableLazyLoadEvent) {
+  protected parseLazy (event: TableLazyLoadEvent) {
     debugLogger('Load lazy %o.', event)
+
+    if (this.lastLazyLoadEvent) {
+      // Prevent lazy loading twice
+      // TODO: remove when https://github.com/primefaces/primeng/issues/5480 is fixed
+      if (
+        this.lastLazyLoadEvent.first === event.first &&
+        this.lastLazyLoadEvent.rows === event.rows &&
+        this.lastLazyLoadEvent.sortField === event.sortField &&
+        this.lastLazyLoadEvent.sortOrder === event.sortOrder
+      ) return false
+    }
+
+    this.lastLazyLoadEvent = event
 
     this.sort = {
       order: event.sortOrder,
@@ -71,18 +85,28 @@ export abstract class RestTable <T = unknown> {
 
     this.expandedRows = {}
 
-    this.reloadData()
-    this.saveSort()
+    return true
+  }
+
+  loadLazy (event: TableLazyLoadEvent) {
+    if (this.parseLazy(event)) {
+      this.reloadData()
+      this.saveSort()
+    }
   }
 
   onSearch (search: string) {
+    this.search = search
+
+    this.resetPagination()
+    this.reloadData()
+  }
+
+  resetPagination () {
     this.pagination = {
       start: 0,
       count: this.rowsPerPage
     }
-
-    this.search = search
-    this.reloadData()
   }
 
   isInSelectionMode () {
@@ -90,7 +114,7 @@ export abstract class RestTable <T = unknown> {
   }
 
   getPaginationTemplate () {
-    return $localize`{first} - {last} of {totalRecords}`
+    return $localize`Showing {first} to {last} of {totalRecords} elements`
   }
 
   protected abstract reloadDataInternal (): void

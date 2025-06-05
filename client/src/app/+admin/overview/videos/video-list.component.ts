@@ -13,7 +13,7 @@ import { VideoBlockComponent } from '@app/shared/shared-moderation/video-block.c
 import { VideoBlockService } from '@app/shared/shared-moderation/video-block.service'
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap'
 import { getAllFiles } from '@peertube/peertube-core-utils'
-import { FileStorage, UserRight, VideoFile, VideoPrivacy, VideoState, VideoStreamingPlaylistType } from '@peertube/peertube-models'
+import { FileStorage, NSFWFlag, UserRight, VideoFile, VideoState, VideoStreamingPlaylistType } from '@peertube/peertube-models'
 import { videoRequiresFileToken } from '@root-helpers/video'
 import { SharedModule, SortMeta } from 'primeng/api'
 import { TableModule, TableRowExpandEvent } from 'primeng/table'
@@ -31,6 +31,8 @@ import {
   VideoActionsDisplayType,
   VideoActionsDropdownComponent
 } from '../../../shared/shared-video-miniature/video-actions-dropdown.component'
+import { VideoNSFWBadgeComponent } from '../../../shared/shared-video/video-nsfw-badge.component'
+import { VideoPrivacyBadgeComponent } from '../../../shared/shared-video/video-privacy-badge.component'
 import { VideoAdminService } from './video-admin.service'
 
 @Component({
@@ -56,7 +58,9 @@ import { VideoAdminService } from './video-admin.service'
     VideoBlockComponent,
     PTDatePipe,
     RouterLink,
-    BytesPipe
+    BytesPipe,
+    VideoPrivacyBadgeComponent,
+    VideoNSFWBadgeComponent
   ]
 })
 export class VideoListComponent extends RestTable<Video> implements OnInit {
@@ -96,8 +100,6 @@ export class VideoListComponent extends RestTable<Video> implements OnInit {
     liveInfo: false,
     removeFiles: true,
     transcoding: true,
-    studio: true,
-    stats: true,
     generateTranscription: true
   }
 
@@ -178,12 +180,6 @@ export class VideoListComponent extends RestTable<Video> implements OnInit {
 
   getIdentifier () {
     return 'VideoListComponent'
-  }
-
-  getPrivacyBadgeClass (video: Video) {
-    if (video.privacy.id === VideoPrivacy.PUBLIC) return 'badge-green'
-
-    return 'badge-yellow'
   }
 
   isUnpublished (video: Video) {
@@ -311,7 +307,11 @@ export class VideoListComponent extends RestTable<Video> implements OnInit {
     this.videoAdminService.getAdminVideos({
       pagination: this.pagination,
       sort: this.sort,
-      nsfw: 'both', // Always list NSFW video, overriding instance/user setting
+
+      // Always list NSFW video, overriding instance/user setting
+      nsfw: 'both',
+      nsfwFlagsExcluded: NSFWFlag.NONE,
+
       search: this.search
     }).pipe(finalize(() => this.loading = false))
       .subscribe({
@@ -372,13 +372,11 @@ export class VideoListComponent extends RestTable<Video> implements OnInit {
     let message: string
 
     if (type === 'hls') {
-      // eslint-disable-next-line max-len
       message = formatICU(
         $localize`Are you sure you want to delete {count, plural, =1 {1 HLS streaming playlist} other {{count} HLS streaming playlists}}?`,
         { count: videos.length }
       )
     } else {
-      // eslint-disable-next-line max-len
       message = formatICU(
         $localize`Are you sure you want to delete Web Video files of {count, plural, =1 {1 video} other {{count} videos}}?`,
         { count: videos.length }

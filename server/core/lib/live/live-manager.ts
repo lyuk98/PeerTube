@@ -27,7 +27,6 @@ import { Server, createServer } from 'net'
 import context from 'node-media-server/src/node_core_ctx.js'
 import nodeMediaServerLogger from 'node-media-server/src/node_core_logger.js'
 import NodeRtmpSession from 'node-media-server/src/node_rtmp_session.js'
-import { join } from 'path'
 import { Server as ServerTLS, createServer as createServerTLS } from 'tls'
 import { federateVideoIfNeeded } from '../activitypub/videos/index.js'
 import { JobQueue } from '../job-queue/index.js'
@@ -56,7 +55,6 @@ const config = {
 const lTags = loggerTagsFactory('live')
 
 class LiveManager {
-
   private static instance: LiveManager
 
   private readonly muxingSessions = new Map<string, MuxingSession>()
@@ -274,13 +272,16 @@ class LiveManager {
     if (this.videoSessions.has(video.uuid)) {
       logger.warn(
         'Video %s has already a live session %s. Refusing stream %s.',
-        video.uuid, this.videoSessions.get(video.uuid), streamKey, lTags(sessionId, video.uuid)
+        video.uuid,
+        this.videoSessions.get(video.uuid),
+        streamKey,
+        lTags(sessionId, video.uuid)
       )
       return this.abortSession(sessionId)
     }
 
     // Cleanup old potential live (could happen with a permanent live)
-    const oldStreamingPlaylist = await VideoStreamingPlaylistModel.loadHLSPlaylistByVideo(video.id)
+    const oldStreamingPlaylist = await VideoStreamingPlaylistModel.loadHLSByVideo(video.id)
     if (oldStreamingPlaylist) {
       if (!videoLive.permanentLive) throw new Error('Found previous session in a non permanent live: ' + video.uuid)
 
@@ -316,7 +317,9 @@ class LiveManager {
     if (!hasAudio && !hasVideo) {
       logger.warn(
         'Not audio and video streams were found for video %s. Refusing stream %s.',
-        video.uuid, streamKey, lTags(sessionId, video.uuid)
+        video.uuid,
+        streamKey,
+        lTags(sessionId, video.uuid)
       )
 
       this.videoSessions.delete(video.uuid)
@@ -325,7 +328,12 @@ class LiveManager {
 
     logger.info(
       '%s probing took %d ms (bitrate: %d, fps: %d, resolution: %d)',
-      inputLocalUrl, Date.now() - now, bitrate, fps, resolution, lTags(sessionId, video.uuid)
+      inputLocalUrl,
+      Date.now() - now,
+      bitrate,
+      fps,
+      resolution,
+      lTags(sessionId, video.uuid)
     )
 
     const allResolutions = await Hooks.wrapObject(
@@ -337,7 +345,9 @@ class LiveManager {
     if (!hasAudio && allResolutions.length === 1 && allResolutions[0] === VideoResolution.H_NOVIDEO) {
       logger.warn(
         'Cannot stream live to audio only because no video stream is available for video %s. Refusing stream %s.',
-        video.uuid, streamKey, lTags(sessionId, video.uuid)
+        video.uuid,
+        streamKey,
+        lTags(sessionId, video.uuid)
       )
 
       this.videoSessions.delete(video.uuid)
@@ -345,7 +355,8 @@ class LiveManager {
     }
 
     logger.info(
-      'Handling live video of original resolution %d.', resolution,
+      'Handling live video of original resolution %d.',
+      resolution,
       { allResolutions, ...lTags(sessionId, video.uuid) }
     )
 
@@ -426,7 +437,8 @@ class LiveManager {
     muxingSession.on('bad-socket-health', ({ videoUUID }) => {
       logger.error(
         'Too much data in client socket stream (ffmpeg is too slow to transcode the video).' +
-        ' Stopping session of video %s.', videoUUID,
+          ' Stopping session of video %s.',
+        videoUUID,
         localLTags
       )
 
@@ -608,7 +620,7 @@ class LiveManager {
 
     if (files.length === 0) return undefined
 
-    return join(directory, files.sort().reverse()[0])
+    return files.sort().reverse()[0]
   }
 
   private buildAllResolutionsToTranscode (originResolution: number, hasAudio: boolean) {

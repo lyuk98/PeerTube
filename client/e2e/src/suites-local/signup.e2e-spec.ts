@@ -5,6 +5,7 @@ import { SignupPage } from '../po/signup.po'
 import {
   browserSleep,
   findEmailTo,
+  getEmailPort,
   getScreenshotPath,
   getVerificationLink,
   go,
@@ -75,7 +76,6 @@ describe('Signup', () => {
   }) {
     await loginPage.loginAsRootUser()
 
-    await adminConfigPage.navigateTo('basic-configuration')
     await adminConfigPage.toggleSignup(options.enabled)
 
     if (options.enabled) {
@@ -116,9 +116,7 @@ describe('Signup', () => {
   })
 
   describe('Email verification disabled', function () {
-
     describe('Direct registration', function () {
-
       it('Should enable signup without approval', async () => {
         await prepareSignup({ enabled: true, requiresApproval: false, requiresEmailVerification: false })
 
@@ -171,7 +169,6 @@ describe('Signup', () => {
     })
 
     describe('Registration with approval', function () {
-
       it('Should enable signup with approval', async () => {
         await prepareSignup({ enabled: true, requiresApproval: true, requiresEmailVerification: false })
 
@@ -193,7 +190,7 @@ describe('Signup', () => {
       })
 
       it('Should validate the third step (account)', async function () {
-        await signupPage.fillAccountStep({ username: 'user_2', displayName: 'user_2 display name', password: 'password' })
+        await signupPage.fillAccountStep({ username: 'user_2', displayName: 'user_2 display name', password: 'superpassword' })
         await signupPage.validateStep()
       })
 
@@ -216,7 +213,7 @@ describe('Signup', () => {
       })
 
       it('Should display a message when trying to login with this account', async function () {
-        const error = await loginPage.getLoginError('user_2', 'password')
+        const error = await loginPage.getLoginError('user_2', 'superpassword')
 
         expect(error).toContain('awaiting approval')
       })
@@ -224,14 +221,14 @@ describe('Signup', () => {
       it('Should accept the registration', async function () {
         await loginPage.loginAsRootUser()
 
-        await adminRegistrationPage.navigateToRegistratonsList()
+        await adminRegistrationPage.navigateToRegistrationsList()
         await adminRegistrationPage.accept('user_2', 'moderation response')
 
         await loginPage.logout()
       })
 
       it('Should be able to login with this new account', async function () {
-        await loginPage.login({ username: 'user_2', password: 'password', displayName: 'user_2 display name' })
+        await loginPage.login({ username: 'user_2', password: 'superpassword', displayName: 'user_2 display name' })
 
         await loginPage.logout()
       })
@@ -240,19 +237,12 @@ describe('Signup', () => {
 
   describe('Email verification enabled', function () {
     const emails: any[] = []
-    let emailPort: number
 
     before(async () => {
-      const key = browser.options.baseUrl + '-emailPort'
-      // FIXME: typings are wrong, get returns a promise
-      // FIXME: use * because the key is not properly escaped by the shared store when using get(key)
-      emailPort = (await (browser.sharedStore.get('*') as unknown as Promise<number>))[key]
-
-      await MockSMTPServer.Instance.collectEmails(emailPort, emails)
+      await MockSMTPServer.Instance.collectEmails(await getEmailPort(), emails)
     })
 
     describe('Direct registration', function () {
-
       it('Should enable signup without approval', async () => {
         await prepareSignup({ enabled: true, requiresApproval: false, requiresEmailVerification: true })
 
@@ -320,7 +310,6 @@ describe('Signup', () => {
     })
 
     describe('Registration with approval', function () {
-
       it('Should enable signup without approval', async () => {
         await prepareSignup({ enabled: true, requiresApproval: true, requiresEmailVerification: true })
 
@@ -346,7 +335,7 @@ describe('Signup', () => {
           username: 'user_4',
           displayName: 'user_4 display name',
           email: 'user_4@example.com',
-          password: 'password'
+          password: 'superpassword'
         })
         await signupPage.validateStep()
       })
@@ -370,7 +359,7 @@ describe('Signup', () => {
       })
 
       it('Should display a message when trying to login with this account', async function () {
-        const error = await loginPage.getLoginError('user_4', 'password')
+        const error = await loginPage.getLoginError('user_4', 'superpassword')
 
         expect(error).toContain('awaiting approval')
       })
@@ -378,7 +367,7 @@ describe('Signup', () => {
       it('Should accept the registration', async function () {
         await loginPage.loginAsRootUser()
 
-        await adminRegistrationPage.navigateToRegistratonsList()
+        await adminRegistrationPage.navigateToRegistrationsList()
         await adminRegistrationPage.accept('user_4', 'moderation response 2')
 
         await loginPage.logout()
@@ -409,5 +398,9 @@ describe('Signup', () => {
     after(() => {
       MockSMTPServer.Instance.kill()
     })
+  })
+
+  after(async () => {
+    await browser.saveScreenshot(getScreenshotPath('after-test.png'))
   })
 })

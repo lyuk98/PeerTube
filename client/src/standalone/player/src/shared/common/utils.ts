@@ -20,7 +20,3 @@ export function getRtcConfig (stunServers: string[]) {
     iceServers: stunServers.map(s => ({ urls: s }))
   }
 }
-
-export function isSameOrigin (current: string, target: string) {
-  return new URL(current).origin === new URL(target).origin
-}
