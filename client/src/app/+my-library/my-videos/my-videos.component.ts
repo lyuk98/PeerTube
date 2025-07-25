@@ -22,14 +22,7 @@ import { VideoPlaylistService } from '@app/shared/shared-video-playlist/video-pl
 import { ChannelToggleComponent } from '@app/shared/standalone-channels/channel-toggle.component'
 import { NgbDropdownModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap'
 import { arrayify, pick } from '@peertube/peertube-core-utils'
-import {
-  UserRight,
-  VideoChannel,
-  VideoExistInPlaylist,
-  VideoPrivacy,
-  VideoPrivacyType,
-  VideosExistInPlaylists
-} from '@peertube/peertube-models'
+import { VideoChannel, VideoExistInPlaylist, VideoPrivacy, VideoPrivacyType, VideosExistInPlaylists } from '@peertube/peertube-models'
 import { logger } from '@root-helpers/logger'
 import debug from 'debug'
 import uniqBy from 'lodash-es/uniqBy'
@@ -259,9 +252,14 @@ export class MyVideosComponent extends RestTable<Video> implements OnInit, OnDes
     }
 
     if (queryParams.start !== undefined) this.pagination.start = +queryParams.start
-    if (queryParams.count !== undefined) this.pagination.count = +queryParams.count
+
+    if (queryParams.count !== undefined) {
+      this.pagination.count = this.rowsPerPage = +queryParams.count
+    }
+
     if (queryParams.sortOrder !== undefined) this.sort.order = +queryParams.sortOrder
     if (queryParams.sortField !== undefined) this.sort.field = queryParams.sortField
+
     if (queryParams.search !== undefined) this.search = queryParams.search
 
     this.reloadData()
@@ -463,7 +461,6 @@ export class MyVideosComponent extends RestTable<Video> implements OnInit, OnDes
         {
           label: $localize`Delete`,
           handler: videos => this.removeVideos(videos),
-          isDisplayed: () => this.user.hasRight(UserRight.REMOVE_ANY_VIDEO),
           iconName: 'delete'
         }
       ]

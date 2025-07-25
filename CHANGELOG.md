@@ -1,5 +1,62 @@
 # Changelog
 
+## v7.2.3
+
+### SECURITY
+
+ * Upgrade `multer` dependency to prevent Denial of Service with a malformed request
+
+### Bug fixes
+
+ * Fix channel synchronization that duplicates video imports
+
+
+## v7.2.2
+
+### SECURITY
+
+ * Prevent ReDOS from `useragent` package by removing deprecated Do Not Track feature. Thanks to Patrick Bohn Matthiesen and [Leonora](https://github.com/herover) from IT University of Copenhagen for reporting this vulnerability!
+
+### Bug fixes
+
+ * Correctly display bulk actions button in "My videos"
+ * Keep playlist name original casing in "My videos"
+ * Fix PIP button z-index on Firefox
+ * More robust S3 upload and ACL error handler
+ * Fix broken video state on S3 move failure
+ * Reset filters when loading query params in "Browse videos"
+ * Fix upload tab title when the file is uploaded
+ * Fix follow card overflow in about page
+ * Convert to full UUID request param `id` in `filter:html.embed.video.allowed.result` and `filter:html.embed.video-playlist.allowed.result` plugin hooks
+ * Fix HLS playback issue on Chrome 138
+ * Fix selecting frame on Safari
+ * Fix input search with multiple prefix tokens
+ * Fix channel sync duplicate after video deletion
+ * Fix caption raw edition when editing segment
+ * Fix accessibility issues:
+   * Fix embed title/avatar accessibility
+   * Add player P2P up/down info aria label
+   * Support escape key in the player settings menu
+   * Support arrow left/right navigation in the settings menu
+   * Fix entry focus when navigating in the settings menu
+   * Add aria controls attribute to settings button
+   * Thanks to [Woebin](https://github.com/Woebin) from [Access Lab](https://axesslab.com/) and [HowlRound Theatre Commons](https://howlround.com/) for conducting the player accessibility audit!
+
+
+## v7.2.1
+
+### Bug fixes
+
+ * Fix federation of sensitive videos with previous PeerTube versions
+ * Do not uppercase video tags to prevent accessibility issues
+ * Fix support field not automatically filled from channel data when publishing a video
+ * Fix "Add new playlist" broken style
+ * Fix browse videos page title on web browser "History Back"
+ * Fix parent menu highlighting in *About Platform* pages
+ * Don't display description/terms titles if these blocks are empty
+ * Correctly load count and rows per page when listing *My videos*
+
+
 ## v7.2.0
 
 ### IMPORTANT NOTES
@@ -11,7 +68,7 @@
 ### SECURITY
 
  * If you installed PeerTube using the [official documentation](https://docs.joinpeertube.org/install/any-os#installation), we highly recommend setting the default user shell to `nologin`. For example on GNU/Linux: `chsh -s /usr/sbin/nologin peertube`
- * If you installed PeerTube runners using the [official Systemd service documentation]https://docs.joinpeertube.org/maintain/tools#as-a-systemd-service(), we highly recommend setting the default user shell to `nologin`. For example on GNU/Linux: `chsh -s /usr/sbin/nologin prunner`
+ * If you installed PeerTube runners using the [official Systemd service documentation](https://docs.joinpeertube.org/maintain/tools#as-a-systemd-service), we highly recommend setting the default user shell to `nologin`. For example on GNU/Linux: `chsh -s /usr/sbin/nologin prunner`
 
 ### Configuration
 

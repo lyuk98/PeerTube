@@ -1186,7 +1186,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+my-library/my-videos/my-videos.component.ts</context>
-          <context context-type="linenumber">434</context>
+          <context context-type="linenumber">439</context>
         </context-group>
       </trans-unit>
       <trans-unit id="9164541937317586242" datatype="html">
@@ -1593,9 +1593,9 @@
           <context context-type="linenumber">15</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="7545636587679565725" datatype="html" xml:space="preserve">
-        <source>File replacement is not available while the video is being transcoding.</source>
-        <target state="translated">在视频转码过程中无法进行文件替换。</target>
+      <trans-unit id="8221383535376180424" datatype="html" xml:space="preserve">
+        <source>File replacement is not available while the video is being transcoded.</source>
+        <target state="translated">视频转码时文件替换不可用。</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+videos-publish-manage/shared-manage/common/unavailable-features.ts</context>
           <context context-type="linenumber">16</context>
@@ -1641,9 +1641,9 @@
           <context context-type="linenumber">37</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="1280514590647661947" datatype="html" xml:space="preserve">
-        <source>Studio is not available while the video is being transcoding.</source>
-        <target state="translated">视频转码期间无法使用 Studio。</target>
+      <trans-unit id="6089478952934441772" datatype="html" xml:space="preserve">
+        <source>Studio is not available while the video is being transcoded.</source>
+        <target state="translated">视频转码时 Studio 不可用。</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+videos-publish-manage/shared-manage/common/unavailable-features.ts</context>
           <context context-type="linenumber">38</context>
@@ -4556,7 +4556,7 @@ The link will expire within 1 hour.</source>
         <target>说明</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+about/about-instance/children/about-instance-home.component.html</context>
-          <context context-type="linenumber">18</context>
+          <context context-type="linenumber">19</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+admin/config/edit-custom-config/edit-instance-information.component.html</context>
@@ -7919,7 +7919,7 @@ The link will expire within 1 hour.</source>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">150</context>
+          <context context-type="linenumber">152</context>
         </context-group>
       </trans-unit>
       <trans-unit id="17234570072885140" datatype="html" xml:space="preserve">
@@ -9237,7 +9237,7 @@ The link will expire within 1 hour.</source>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">130</context>
+          <context context-type="linenumber">132</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3901868627411944813" datatype="html">
@@ -9665,7 +9665,7 @@ The link will expire within 1 hour.</source>
         <target>条款</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+about/about-instance/children/about-instance-home.component.html</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">27</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+admin/config/edit-custom-config/edit-instance-information.component.html</context>
@@ -11709,7 +11709,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">更多过滤选项</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">47</context>
+          <context context-type="linenumber">49</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5797835178123017550" datatype="html">
@@ -11717,7 +11717,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">隐藏过滤选项</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="1218302359178184742" datatype="html" xml:space="preserve">
@@ -11725,7 +11725,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">排序方式：</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">58</context>
+          <context context-type="linenumber">60</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5790604788861392297" datatype="html" xml:space="preserve">
@@ -11733,7 +11733,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">内容偏好</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2579809064600486610" datatype="html" xml:space="preserve">
@@ -11741,7 +11741,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">您总是使用相同的偏好吗？</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">73</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2939244215860150958" datatype="html" xml:space="preserve">
@@ -11749,7 +11749,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">更新您的 <x id="START_LINK" ctype="x-a" equiv-text="&lt;a routerLink=&quot;/my-account/settings&quot; fragment=&quot;video-languages-subtitles&quot; (click)=&quot;onAccountSettingsClick($event)&quot;&gt;"/>默认设置<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/></target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">74</context>
+          <context context-type="linenumber">76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="1744425032255703211" datatype="html">
@@ -11757,7 +11757,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">点播和直播视频</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">134</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5630677130087951545" datatype="html" xml:space="preserve">
@@ -11765,7 +11765,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">展示所有视频（私密、unlisted、受密码保护、尚未发布或敏感视频）</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">157</context>
+          <context context-type="linenumber">159</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2128860191118589382" datatype="html" xml:space="preserve">
@@ -14013,9 +14013,9 @@ The link will expire within 1 hour.</source>
           <context context-type="linenumber">101</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="8463487834152954723" datatype="html">
+      <trans-unit id="8463487834152954723" datatype="html" xml:space="preserve">
         <source>john_channel</source>
-        <target state="translated">john_channel</target>
+        <target state="translated">加入频道</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+admin/overview/users/user-edit/user-edit.component.html</context>
           <context context-type="linenumber">103</context>
@@ -14142,7 +14142,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">敏感内容</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">87</context>
+          <context context-type="linenumber">89</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters.model.ts</context>
@@ -14154,7 +14154,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">在 <x id="START_LINK" ctype="x-a" equiv-text="&lt;a routerLink=&quot;/my-account/settings&quot; fragment=&quot;video-sensitive-content-policy&quot; (click)=&quot;onAccountSettingsClick($event)&quot;&gt;"/>你的设置<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/>中更新你的政策。 </target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">93</context>
+          <context context-type="linenumber">95</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5859845485947900894" datatype="html" xml:space="preserve">
@@ -14162,15 +14162,15 @@ The link will expire within 1 hour.</source>
         <target state="translated">平台订购</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">102</context>
+          <context context-type="linenumber">104</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="294076047211010916" datatype="html" xml:space="preserve">
-        <source><x id="INTERPOLATION" equiv-text="{{ instanceName }}"/> platform subscribes to content from <x id="START_LINK" ctype="x-a" equiv-text="&lt;a routerLink=&quot;/about/follows&quot; target=&quot;_blank&quot;&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ totalFollowing }}"/> other platforms<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/>. </source>
-        <target state="translated"><x id="INTERPOLATION" equiv-text="{{ instanceName }}"/> 平台订阅来自 <x id="START_LINK" ctype="x-a" equiv-text="&lt;a routerLink=&quot;/about/follows&quot; target=&quot;_blank&quot;&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ totalFollowing }}"/> 其他平台的<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/>内容. </target>
+      <trans-unit id="7098240021806375524" datatype="html" xml:space="preserve">
+        <source><x id="INTERPOLATION" equiv-text="{{ instanceName }}"/> platform subscribes to content from <x id="START_LINK" ctype="x-a" equiv-text="&lt;a routerLink=&quot;/about/follows&quot; target=&quot;_blank&quot;&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ totalFollowing }}"/> <x id="ICU" equiv-text="{totalFollowing, plural, =1 {other platform} other {other platforms}}" xid="3907811049330252725"/><x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/>. </source>
+        <target state="translated"><x id="INTERPOLATION" equiv-text="{{ instanceName }}"/> 平台订阅来自 <x id="START_LINK" ctype="x-a" equiv-text="&lt;a routerLink=&quot;/about/follows&quot; target=&quot;_blank&quot;&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ totalFollowing }}"/> <x id="ICU" xid="3907811049330252725" equiv-text="{totalFollowing, plural, =1 {other platform} other {other platforms}}"/><x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/> 的内容。 </target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">106,107</context>
+          <context context-type="linenumber">108,109</context>
         </context-group>
       </trans-unit>
       <trans-unit id="8603409827386793098" datatype="html" xml:space="preserve">
@@ -14178,7 +14178,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">在此设置您的显示偏好。</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">109</context>
+          <context context-type="linenumber">111</context>
         </context-group>
       </trans-unit>
       <trans-unit id="1753457183754409152" datatype="html" xml:space="preserve">
@@ -14186,7 +14186,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">显示的视频</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">114</context>
+          <context context-type="linenumber">116</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3029609593829675670" datatype="html" xml:space="preserve">
@@ -14194,7 +14194,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">内容类型</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">121</context>
+          <context context-type="linenumber">123</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5590086849807274701" datatype="html">
@@ -14226,7 +14226,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">语言</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">81</context>
+          <context context-type="linenumber">83</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters.model.ts</context>
@@ -14238,7 +14238,7 @@ The link will expire within 1 hour.</source>
         <target state="translated">分类</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">124</context>
+          <context context-type="linenumber">126</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters.model.ts</context>
@@ -15083,11 +15083,11 @@ The link will expire within 1 hour.</source>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+my-library/my-videos/my-videos.component.ts</context>
-          <context context-type="linenumber">426</context>
+          <context context-type="linenumber">431</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+my-library/my-videos/my-videos.component.ts</context>
-          <context context-type="linenumber">464</context>
+          <context context-type="linenumber">469</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+video-watch/shared/comment/video-comments.component.ts</context>
@@ -17705,7 +17705,7 @@ The link will expire within 1 hour.</source>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+my-library/my-videos/my-videos.component.ts</context>
-          <context context-type="linenumber">454</context>
+          <context context-type="linenumber">459</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3380608219513805292">
@@ -18342,7 +18342,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         <target state="translated">时下流行</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+video-list/videos-list-all.component.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">116</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.ts</context>
@@ -18502,7 +18502,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">144</context>
+          <context context-type="linenumber">146</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2180217594100853008" datatype="html">
@@ -18514,7 +18514,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">139</context>
+          <context context-type="linenumber">141</context>
         </context-group>
       </trans-unit>
       <trans-unit id="8487565500496466433">
@@ -22549,7 +22549,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+my-library/my-videos/my-videos.component.ts</context>
-          <context context-type="linenumber">422</context>
+          <context context-type="linenumber">427</context>
         </context-group>
       </trans-unit>
       <trans-unit id="1950057220179636309">
@@ -22588,12 +22588,24 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
           <context context-type="linenumber">21</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="3942718333651219385" datatype="html" xml:space="preserve">
-        <source>Videos on <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ instanceName }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> and <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ totalFollowing }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> other platforms</source>
-        <target state="translated"><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ instanceName }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> 上的视频以及 <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ totalFollowing }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> 个其他平台</target>
+      <trans-unit id="341953445829629390" datatype="html" xml:space="preserve">
+        <source>Videos on <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ instanceName }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> and <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ totalFollowing }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> <x id="ICU" equiv-text="{totalFollowing, plural, =1 {other platform} other {other platforms}}" xid="3907811049330252725"/> </source>
+        <target state="translated"><x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ instanceName }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> 和 <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ totalFollowing }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> <x id="ICU" xid="3907811049330252725" equiv-text="{totalFollowing, plural, =1 {other platform} other {other platforms}}"/> 上的视频 </target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">24,26</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3907811049330252725" datatype="html" xml:space="preserve">
+        <source>{VAR_PLURAL, plural, =1 {other platform} other {other platforms}}</source>
+        <target state="translated">{VAR_PLURAL, plural, =1 {其他平台} other {其他平台}}</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
+          <context context-type="linenumber">24,25</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.html</context>
+          <context context-type="linenumber">108,109</context>
         </context-group>
       </trans-unit>
       <trans-unit id="4814285799071780083" datatype="html">
@@ -23591,7 +23603,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         <target state="translated">“<x id="PH" equiv-text="this.getFilename(t.options.file)"/>”将添加到此视频的开头</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+videos-publish-manage/shared-manage/common/video-edit.model.ts</context>
-          <context context-type="linenumber">786</context>
+          <context context-type="linenumber">787</context>
         </context-group>
       </trans-unit>
       <trans-unit id="4952096817126306891" datatype="html">
@@ -23599,7 +23611,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         <target state="translated">“<x id="PH" equiv-text="this.getFilename(t.options.file)"/>”将被添加到视频的结束处</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+videos-publish-manage/shared-manage/common/video-edit.model.ts</context>
-          <context context-type="linenumber">790</context>
+          <context context-type="linenumber">791</context>
         </context-group>
       </trans-unit>
       <trans-unit id="665518679871959619" datatype="html">
@@ -23607,7 +23619,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         <target state="translated">“<x id="PH" equiv-text="this.getFilename(t.options.file)"/>”图像水印将被添加到视频中</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+videos-publish-manage/shared-manage/common/video-edit.model.ts</context>
-          <context context-type="linenumber">794</context>
+          <context context-type="linenumber">795</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2677581013897190613" datatype="html">
@@ -23615,7 +23627,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         <target state="translated">视频将开始于 <x id="PH" equiv-text="secondsToTime(start)"/> 并结束于 <x id="PH_1" equiv-text="secondsToTime(end)"/></target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+videos-publish-manage/shared-manage/common/video-edit.model.ts</context>
-          <context context-type="linenumber">801</context>
+          <context context-type="linenumber">802</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2299077646120636288" datatype="html">
@@ -23623,7 +23635,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         <target state="translated">视频将开始于 <x id="PH" equiv-text="secondsToTime(start)"/></target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+videos-publish-manage/shared-manage/common/video-edit.model.ts</context>
-          <context context-type="linenumber">805</context>
+          <context context-type="linenumber">806</context>
         </context-group>
       </trans-unit>
       <trans-unit id="7209039243783736285" datatype="html">
@@ -23631,7 +23643,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         <target state="translated">视频将结束于 <x id="PH" equiv-text="secondsToTime(end)"/></target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+videos-publish-manage/shared-manage/common/video-edit.model.ts</context>
-          <context context-type="linenumber">809</context>
+          <context context-type="linenumber">810</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5512208811126492983" datatype="html">
@@ -24043,7 +24055,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         <target state="translated">近期新增</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+video-list/videos-list-all.component.ts</context>
-          <context context-type="linenumber">108</context>
+          <context context-type="linenumber">111</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/shared-video-miniature/video-filters-header.component.ts</context>
@@ -24123,7 +24135,7 @@ Ensure you have correctly configured PeerTube (config/ directory), in particular
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/+video-list/videos-list-all.component.ts</context>
-          <context context-type="linenumber">103</context>
+          <context context-type="linenumber">106</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5668077948386857930" datatype="html">

@@ -12,7 +12,8 @@ import {
   Default,
   DefaultScope,
   ForeignKey,
-  Is, Table,
+  Is,
+  Table,
   UpdatedAt
 } from 'sequelize-typescript'
 import { isVideoImportStateValid, isVideoImportTargetUrlValid } from '../../helpers/custom-validators/video-imports.js'
@@ -47,7 +48,6 @@ const defaultVideoScope = () => {
     }
   ]
 }))
-
 @Table({
   tableName: 'videoImport',
   indexes: [
@@ -208,17 +208,35 @@ export class VideoImportModel extends SequelizeModel<VideoImportModel> {
     ]).then(([ total, data ]) => ({ total, data }))
   }
 
-  static async urlAlreadyImported (channelId: number, targetUrl: string): Promise<boolean> {
-    const element = await VideoImportModel.unscoped().findOne({
-      where: {
-        targetUrl,
-        state: {
-          [Op.in]: [ VideoImportState.PENDING, VideoImportState.PROCESSING, VideoImportState.SUCCESS ]
+  static async urlAlreadyImported (options: {
+    targetUrl: string
+    channelId: number
+    channelSyncId?: number
+  }): Promise<boolean> {
+    const { channelSyncId, channelId, targetUrl } = options
+
+    const baseWhere = {
+      targetUrl,
+      state: {
+        [Op.in]: [ VideoImportState.PENDING, VideoImportState.PROCESSING, VideoImportState.SUCCESS ]
+      }
+    }
+
+    const bySyncId = channelSyncId
+      ? VideoImportModel.unscoped().findOne({
+        where: {
+          ...baseWhere,
+
+          videoChannelSyncId: channelSyncId
         }
-      },
+      })
+      : Promise.resolve(undefined)
+
+    const byChannelId = VideoImportModel.unscoped().findOne({
+      where: baseWhere,
       include: [
         {
-          model: VideoModel,
+          model: VideoModel.unscoped(),
           required: true,
           where: {
             channelId
@@ -227,7 +245,7 @@ export class VideoImportModel extends SequelizeModel<VideoImportModel> {
       ]
     })
 
-    return !!element
+    return (await Promise.all([ bySyncId, byChannelId ])).some(e => !!e)
   }
 
   getTargetIdentifier () {
