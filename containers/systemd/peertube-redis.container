@@ -3,7 +3,7 @@ PartOf=peertube-pod.service
 
 [Container]
 ContainerName=peertube-redis
-Image=docker.io/redis:6-alpine
+Image=docker.io/redis:8-alpine
 Pod=peertube.pod
 
 EnvironmentFile=.env

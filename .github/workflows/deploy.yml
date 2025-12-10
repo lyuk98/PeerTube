@@ -41,6 +41,7 @@ jobs:
         run: |
           CMDLINE="mkdir -p --"
           CMDLINE+=" ~/docker-volume/nginx"
+          CMDLINE+=" ~/docker-volume/nginx-logs"
           CMDLINE+=" ~/docker-volume/data"
           CMDLINE+=" ~/docker-volume/certbot/conf"
           CMDLINE+=" ~/docker-volume/config"

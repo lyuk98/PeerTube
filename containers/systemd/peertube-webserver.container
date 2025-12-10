@@ -13,6 +13,7 @@ Volume=peertube-assets.volume:/var/www/peertube/peertube-latest/client/dist:ro
 Volume=%h/docker-volume/data:/var/www/peertube/storage
 Volume=peertube-certbot-www.volume:/var/www/certbot
 Volume=%h/docker-volume/certbot/conf:/etc/letsencrypt
+Volume=%h/docker-volume/nginx-logs:/var/log/nginx
 
 [Service]
 Restart=always
