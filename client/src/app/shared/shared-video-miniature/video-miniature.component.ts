@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common'
+import { CommonModule, NgTemplateOutlet } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -13,9 +13,10 @@ import {
 import { AuthService, ScreenService, ServerService, User } from '@app/core'
 import { NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap'
 import { HTMLServerConfig, VideoPlaylistType, VideoPrivacy } from '@peertube/peertube-models'
-import { switchMap } from 'rxjs/operators'
+import { first, switchMap } from 'rxjs/operators'
 import { LinkType } from '../../../types/link.type'
 import { ActorAvatarComponent } from '../shared-actor-image/actor-avatar.component'
+import { ActorHostComponent } from '../shared-actor/actor-host.component'
 import { GlobalIconComponent } from '../shared-icons/global-icon.component'
 import { LinkComponent } from '../shared-main/common/link.component'
 import { DateToggleComponent } from '../shared-main/date/date-toggle.component'
@@ -24,7 +25,6 @@ import { VideoService } from '../shared-main/video/video.service'
 import { VideoThumbnailComponent } from '../shared-thumbnail/video-thumbnail.component'
 import { VideoPlaylistService } from '../shared-video-playlist/video-playlist.service'
 import { VideoViewsCounterComponent } from '../shared-video/video-views-counter.component'
-import { ActorHostComponent } from '../standalone-actor/actor-host.component'
 import { VideoActionsDisplayType, VideoActionsDropdownComponent } from './video-actions-dropdown.component'
 
 export type MiniatureDisplayOptions = {
@@ -52,7 +52,8 @@ export type MiniatureDisplayOptions = {
     VideoActionsDropdownComponent,
     ActorHostComponent,
     GlobalIconComponent,
-    NgbTooltipModule
+    NgbTooltipModule,
+    NgTemplateOutlet
   ]
 })
 export class VideoMiniatureComponent implements OnInit {
@@ -322,7 +323,7 @@ export class VideoMiniatureComponent implements OnInit {
     if (this.screenService.isInTouchScreen() || !this.displayVideoActions() || !this.isUserLoggedIn()) return
 
     this.authService.userInformationLoaded
-      .pipe(switchMap(() => this.videoPlaylistService.listenToVideoPlaylistChange(this.video().id)))
+      .pipe(first(), switchMap(() => this.videoPlaylistService.listenToVideoPlaylistChange(this.video().id)))
       .subscribe(existResult => {
         const watchLaterPlaylist = this.authService.getUser().specialPlaylists.find(p => p.type === VideoPlaylistType.WATCH_LATER)
         const existsInWatchLater = existResult.find(r => r.playlistId === watchLaterPlaylist.id)

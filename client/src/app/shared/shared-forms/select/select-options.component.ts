@@ -1,20 +1,18 @@
 import { CommonModule } from '@angular/common'
 import {
-  AfterContentInit,
   booleanAttribute,
   ChangeDetectorRef,
   Component,
+  ContentChild,
   forwardRef,
   HostListener,
-  numberAttribute,
-  TemplateRef,
   inject,
   input,
-  contentChildren
+  numberAttribute,
+  TemplateRef
 } from '@angular/core'
 import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/forms'
-import { PeerTubeTemplateDirective } from '@app/shared/shared-main/common/peertube-template.directive'
-import { DropdownModule } from 'primeng/dropdown'
+import { SelectModule } from 'primeng/select'
 import { SelectOptionsItem } from '../../../../types/select-options-item.model'
 
 @Component({
@@ -30,9 +28,9 @@ import { SelectOptionsItem } from '../../../../types/select-options-item.model'
       multi: true
     }
   ],
-  imports: [ DropdownModule, FormsModule, CommonModule ]
+  imports: [ SelectModule, FormsModule, CommonModule ]
 })
-export class SelectOptionsComponent implements AfterContentInit, ControlValueAccessor {
+export class SelectOptionsComponent implements ControlValueAccessor {
   private cd = inject(ChangeDetectorRef)
 
   readonly items = input<SelectOptionsItem[]>([])
@@ -45,21 +43,16 @@ export class SelectOptionsComponent implements AfterContentInit, ControlValueAcc
   readonly virtualScroll = input(false, { transform: booleanAttribute })
   readonly virtualScrollItemSize = input(39, { transform: numberAttribute })
 
-  readonly templates = contentChildren(PeerTubeTemplateDirective)
+  @ContentChild('selectOption', { descendants: false })
+  selectOptionTemplate: TemplateRef<any>
 
-  customItemTemplate: TemplateRef<any>
+  @ContentChild('itemExtra', { descendants: false })
+  itemExtraTemplate: TemplateRef<any>
 
   selectedId: number | string
   disabled = false
 
   wroteValue: number | string
-
-  ngAfterContentInit () {
-    {
-      const t = this.templates().find(t => t.name() === 'item')
-      if (t) this.customItemTemplate = t.template
-    }
-  }
 
   propagateChange = (_: any) => {
     // empty

@@ -4,7 +4,7 @@ import { isDateValid } from '@server/helpers/custom-validators/misc.js'
 import { isValidStatTimeserieMetric } from '@server/helpers/custom-validators/video-stats.js'
 import { STATS_TIMESERIE } from '@server/initializers/constants.js'
 import { HttpStatusCode, UserRight, VideoStatsTimeserieQuery } from '@peertube/peertube-models'
-import { areValidationErrors, checkUserCanManageVideo, doesVideoExist, isValidVideoIdParam } from '../shared/index.js'
+import { areValidationErrors, checkCanManageVideo, doesVideoExist, isValidVideoIdParam } from '../shared/index.js'
 
 export const videoOverallOrUserAgentStatsValidator = [
   isValidVideoIdParam('videoId'),
@@ -75,7 +75,7 @@ export const videoTimeseriesStatsValidator = [
     if (query.startDate && getIntervalByDays(query.startDate, query.endDate) > STATS_TIMESERIE.MAX_DAYS) {
       return res.fail({
         status: HttpStatusCode.BAD_REQUEST_400,
-        message: 'Star date and end date interval is too big'
+        message: 'Start date and end date interval is too big'
       })
     }
 
@@ -89,7 +89,20 @@ export const videoTimeseriesStatsValidator = [
 
 async function commonStatsCheck (req: express.Request, res: express.Response) {
   if (!await doesVideoExist(req.params.videoId, res, 'all')) return false
-  if (!checkUserCanManageVideo(res.locals.oauth.token.User, res.locals.videoAll, UserRight.SEE_ALL_VIDEOS, res)) return false
+
+  if (
+    !await checkCanManageVideo({
+      user: res.locals.oauth.token.User,
+      video: res.locals.videoAll,
+      right: UserRight.SEE_ALL_VIDEOS,
+      req,
+      res,
+      checkIsLocal: true,
+      checkIsOwner: false
+    })
+  ) {
+    return false
+  }
 
   return true
 }

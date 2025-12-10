@@ -3,11 +3,11 @@ import { VideoFile } from '@peertube/peertube-models'
 import { logger } from '@root-helpers/logger'
 import debug from 'debug'
 import videojs from 'video.js'
-import { PeerTubeResolution, PlayerNetworkInfo, WebVideoPluginOptions } from '../../types'
+import { PeerTubeResolution, PlayerNetworkInfo, VideojsPlayer, VideojsPlugin, WebVideoPluginOptions } from '../../types'
 
 const debugLogger = debug('peertube:player:web-video-plugin')
 
-const Plugin = videojs.getPlugin('plugin')
+const Plugin = videojs.getPlugin('plugin') as typeof VideojsPlugin
 
 class WebVideoPlugin extends Plugin {
   declare private readonly videoFiles: VideoFile[]
@@ -21,8 +21,8 @@ class WebVideoPlugin extends Plugin {
   declare private onPlayHandler: () => void
   declare private onLoadedMetadata: () => void
 
-  constructor (player: videojs.Player, options?: WebVideoPluginOptions) {
-    super(player, options)
+  constructor (player: VideojsPlayer, options?: WebVideoPluginOptions) {
+    super(player)
 
     this.videoFiles = options.videoFiles
     this.videoFileToken = options.videoFileToken
@@ -91,7 +91,9 @@ class WebVideoPlugin extends Plugin {
       this.player.addClass('vjs-updating-resolution')
     }
 
-    this.player.src(httpUrl)
+    if (this.onPlayHandler) {
+      this.player.off('canplay', this.onPlayHandler)
+    }
 
     this.onPlayHandler = () => {
       this.player.playbackRate(playbackRate)
@@ -109,12 +111,19 @@ class WebVideoPlugin extends Plugin {
           .then(() => {
             if (paused) this.player.pause()
 
-            this.player.autoplay(oldAutoplayValue)
+            // FIXME: typings
+            this.player.autoplay(oldAutoplayValue as any)
           })
       }
     }
 
     this.player.one('canplay', this.onPlayHandler)
+
+    this.player.src(httpUrl)
+
+    if (options.isUserResolutionChange) {
+      this.player.preload('auto')
+    }
   }
 
   getCurrentVideoFile () {

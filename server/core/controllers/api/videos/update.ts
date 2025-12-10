@@ -3,7 +3,7 @@ import {
   HttpStatusCode,
   NSFWFlag,
   ThumbnailType,
-  VideoCommentPolicy,
+  VideoChannelActivityAction,
   VideoPrivacy,
   VideoPrivacyType,
   VideoUpdate
@@ -20,6 +20,7 @@ import { VideoPathManager } from '@server/lib/video-path-manager.js'
 import { setVideoPrivacy } from '@server/lib/video-privacy.js'
 import { setVideoTags } from '@server/lib/video.js'
 import { openapiOperationDoc } from '@server/middlewares/doc.js'
+import { VideoChannelActivityModel } from '@server/models/video/video-channel-activity.js'
 import { VideoPasswordModel } from '@server/models/video/video-password.js'
 import { FilteredModelAttributes } from '@server/types/index.js'
 import { MVideoFullLight, MVideoThumbnail } from '@server/types/models/index.js'
@@ -64,6 +65,7 @@ async function updateVideo (req: express.Request, res: express.Response) {
   const videoFromReq = res.locals.videoAll
   const oldVideoAuditView = new VideoAuditView(videoFromReq.toFormattedDetailsJSON())
   const body: VideoUpdate = req.body
+  const user = res.locals.oauth.token.User
 
   const hadPrivacyForFederation = isPrivacyForFederation(videoFromReq.privacy)
   const oldPrivacy = videoFromReq.privacy
@@ -103,13 +105,8 @@ async function updateVideo (req: express.Request, res: express.Response) {
         video.nsfwSummary = null
       }
 
-      // Special treatment for comments policy to support deprecated commentsEnabled attribute
       if (body.commentsPolicy !== undefined) {
         video.commentsPolicy = body.commentsPolicy
-      } else if (body.commentsEnabled === true) {
-        video.commentsPolicy = VideoCommentPolicy.ENABLED
-      } else if (body.commentsEnabled === false) {
-        video.commentsPolicy = VideoCommentPolicy.DISABLED
       }
 
       if (body.originallyPublishedAt !== undefined) {
@@ -148,13 +145,40 @@ async function updateVideo (req: express.Request, res: express.Response) {
       }
 
       // Video channel update?
-      if (res.locals.videoChannel && videoInstanceUpdated.channelId !== res.locals.videoChannel.id) {
-        await videoInstanceUpdated.$set('VideoChannel', res.locals.videoChannel, { transaction: t })
-        videoInstanceUpdated.VideoChannel = res.locals.videoChannel
+      const newChannel = res.locals.videoChannel
+      if (newChannel && videoInstanceUpdated.channelId !== newChannel.id) {
+        const oldChannel = videoInstanceUpdated.VideoChannel
+
+        await VideoChannelActivityModel.addVideoActivity({
+          action: VideoChannelActivityAction.REMOVE_CHANNEL_OWNERSHIP,
+          user,
+          channel: oldChannel,
+          video: videoInstanceUpdated,
+          transaction: t
+        })
+
+        await VideoChannelActivityModel.addVideoActivity({
+          action: VideoChannelActivityAction.CREATE_CHANNEL_OWNERSHIP,
+          user,
+          channel: newChannel,
+          video: videoInstanceUpdated,
+          transaction: t
+        })
+
+        await videoInstanceUpdated.$set('VideoChannel', newChannel, { transaction: t })
+        videoInstanceUpdated.VideoChannel = newChannel
 
         if (hadPrivacyForFederation === true) {
           await changeVideoChannelShare(videoInstanceUpdated, oldVideoChannel, t)
         }
+      } else {
+        await VideoChannelActivityModel.addVideoActivity({
+          action: VideoChannelActivityAction.UPDATE,
+          user: res.locals.oauth.token.User,
+          channel: videoInstanceUpdated.VideoChannel,
+          video: videoInstanceUpdated,
+          transaction: t
+        })
       }
 
       // Schedule an update in the future?
@@ -176,7 +200,7 @@ async function updateVideo (req: express.Request, res: express.Response) {
 
       await autoBlacklistVideoIfNeeded({
         video: videoInstanceUpdated,
-        user: res.locals.oauth.token.User,
+        user,
         isRemote: false,
         isNew: false,
         isNewFile: false,
@@ -247,15 +271,29 @@ async function updateVideoPrivacy (options: {
   return isNewVideoForFederation
 }
 
-function updateSchedule (videoInstance: MVideoFullLight, videoInfoToUpdate: VideoUpdate, transaction: Transaction) {
+async function updateSchedule (videoInstance: MVideoFullLight, videoInfoToUpdate: VideoUpdate, transaction: Transaction) {
   if (videoInfoToUpdate.scheduleUpdate) {
-    return ScheduleVideoUpdateModel.upsert({
+    const updateAt = new Date(videoInfoToUpdate.scheduleUpdate.updateAt)
+
+    videoInstance.publishedAt = updateAt
+    await videoInstance.save({ transaction })
+
+    await ScheduleVideoUpdateModel.upsert({
       videoId: videoInstance.id,
-      updateAt: new Date(videoInfoToUpdate.scheduleUpdate.updateAt),
+      updateAt,
       privacy: videoInfoToUpdate.scheduleUpdate.privacy || null
     }, { transaction })
-  } else if (videoInfoToUpdate.scheduleUpdate === null) {
-    return ScheduleVideoUpdateModel.deleteByVideoId(videoInstance.id, transaction)
+
+    return
+  }
+
+  if (videoInfoToUpdate.scheduleUpdate === null) {
+    const deleted = await ScheduleVideoUpdateModel.deleteByVideoId(videoInstance.id, transaction)
+
+    if (deleted) {
+      videoInstance.publishedAt = new Date()
+      await videoInstance.save({ transaction })
+    }
   }
 }
 

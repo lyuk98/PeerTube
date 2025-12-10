@@ -4,6 +4,7 @@ import { logger } from '@server/helpers/logger.js'
 import { AccountModel } from '@server/models/account/account.js'
 import { VideoChannelModel } from '@server/models/video/video-channel.js'
 import { MAccount, MActor, MActorFull, MChannel } from '@server/types/models/index.js'
+import { upsertAPPlayerSettings } from '../player-settings.js'
 import { getOrCreateAPOwner } from './get.js'
 import { updateActorImages } from './image.js'
 import { fetchActorFollowsCount } from './shared/index.js'
@@ -30,12 +31,24 @@ export class APActorUpdater {
       this.accountOrChannel.name = this.actorObject.name || this.actorObject.preferredUsername
       this.accountOrChannel.description = this.actorObject.summary
 
-      if (this.accountOrChannel instanceof VideoChannelModel) {
-        const owner = await getOrCreateAPOwner(this.actorObject, this.actorObject.id)
-        this.accountOrChannel.accountId = owner.Account.id
-        this.accountOrChannel.Account = owner.Account as AccountModel
+      const accountOrChannel = this.accountOrChannel
 
-        this.accountOrChannel.support = this.actorObject.support
+      if (accountOrChannel instanceof VideoChannelModel) {
+        const channel = accountOrChannel as MChannel
+
+        const owner = await getOrCreateAPOwner(this.actorObject, this.actorObject.id)
+
+        channel.accountId = owner.Account.id
+        channel.support = this.actorObject.support
+
+        if (typeof this.actorObject.playerSettings === 'string') {
+          await upsertAPPlayerSettings({
+            settingsObject: this.actorObject.playerSettings,
+            video: undefined,
+            channel: Object.assign(channel, { Account: owner.Account, Actor: this.actor }),
+            contextUrl: this.actor.url
+          })
+        }
       }
 
       await runInReadCommittedTransaction(async t => {
@@ -44,8 +57,17 @@ export class APActorUpdater {
       })
 
       await runInReadCommittedTransaction(async t => {
-        await this.actor.save({ transaction: t })
         await this.accountOrChannel.save({ transaction: t })
+
+        if (accountOrChannel instanceof VideoChannelModel) {
+          this.actor.videoChannelId = accountOrChannel.id
+          this.actor.accountId = null
+        } else if (accountOrChannel instanceof AccountModel) {
+          this.actor.accountId = accountOrChannel.id
+          this.actor.videoChannelId = null
+        }
+
+        await this.actor.save({ transaction: t })
       })
 
       // Update the following line to template string

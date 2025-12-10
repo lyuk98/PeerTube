@@ -2,7 +2,6 @@ import { getResolutionLabel } from '@peertube/peertube-core-utils'
 import {
   Video,
   VideoAdditionalAttributes,
-  VideoCommentPolicy,
   VideoDetails,
   VideoFile,
   VideoInclude,
@@ -40,22 +39,24 @@ export type VideoFormattingJSONOptions = {
     source?: boolean
     blockedOwner?: boolean
     automaticTags?: boolean
+    liveSchedules?: boolean
   }
 }
 
-export function guessAdditionalAttributesFromQuery (query: Pick<VideosCommonQueryAfterSanitize, 'include'>): VideoFormattingJSONOptions {
-  if (!query?.include) return {}
-
+export function guessAdditionalAttributesFromQuery (
+  query: Pick<VideosCommonQueryAfterSanitize, 'include' | 'includeScheduledLive'>
+): VideoFormattingJSONOptions {
   return {
     additionalAttributes: {
-      state: !!(query.include & VideoInclude.NOT_PUBLISHED_STATE),
+      state: query.includeScheduledLive || !!(query.include & VideoInclude.NOT_PUBLISHED_STATE),
       waitTranscoding: !!(query.include & VideoInclude.NOT_PUBLISHED_STATE),
       scheduledUpdate: !!(query.include & VideoInclude.NOT_PUBLISHED_STATE),
       blacklistInfo: !!(query.include & VideoInclude.BLACKLISTED),
       files: !!(query.include & VideoInclude.FILES),
       source: !!(query.include & VideoInclude.SOURCE),
       blockedOwner: !!(query.include & VideoInclude.BLOCKED_OWNER),
-      automaticTags: !!(query.include & VideoInclude.AUTOMATIC_TAGS)
+      automaticTags: !!(query.include & VideoInclude.AUTOMATIC_TAGS),
+      liveSchedules: query.includeScheduledLive
     }
   }
 }
@@ -99,11 +100,11 @@ export function videoModelToFormattedJSON (video: MVideoFormattable, options: Vi
     nsfwSummary: video.nsfwSummary,
 
     truncatedDescription: video.getTruncatedDescription(),
-    description: options && options.completeDescription === true
+    description: options?.completeDescription === true
       ? video.description
       : video.getTruncatedDescription(),
 
-    isLocal: video.isOwned(),
+    isLocal: video.isLocal(),
     duration: video.duration,
 
     aspectRatio: video.aspectRatio,
@@ -149,6 +150,7 @@ export function videoModelToFormattedDetailsJSON (video: MVideoFormattableDetail
   const videoJSON = video.toFormattedJSON({
     completeDescription: true,
     additionalAttributes: {
+      liveSchedules: true,
       scheduledUpdate: true,
       blacklistInfo: true,
       files: true
@@ -167,8 +169,6 @@ export function videoModelToFormattedDetailsJSON (video: MVideoFormattableDetail
     account: video.VideoChannel.Account.toFormattedJSON(),
     tags,
 
-    // TODO: remove, deprecated in PeerTube 6.2
-    commentsEnabled: video.commentsPolicy !== VideoCommentPolicy.DISABLED,
     commentsPolicy: {
       id: video.commentsPolicy,
       label: VIDEO_COMMENTS_POLICY[video.commentsPolicy]
@@ -364,6 +364,10 @@ function buildAdditionalAttributes (video: MVideoFormattable, options: VideoForm
 
   if (add?.automaticTags === true) {
     result.automaticTags = (video.VideoAutomaticTags || []).map(t => t.AutomaticTag.name)
+  }
+
+  if (add?.liveSchedules === true) {
+    result.liveSchedules = (video.VideoLive?.LiveSchedules || []).map(s => s.toFormattedJSON())
   }
 
   return result

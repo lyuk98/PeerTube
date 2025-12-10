@@ -31,6 +31,8 @@ import {
   VideoDetails as VideoDetailsServerModel,
   VideoFile,
   VideoFileMetadata,
+  VideoLicence,
+  VideoLicenceType,
   VideoPrivacy,
   VideoPrivacyType,
   VideosCommonQuery,
@@ -122,12 +124,14 @@ export class VideoService {
     sort: VideoSortField | SortMeta
     userChannels?: VideoChannelServerModel[]
 
+    includeCollaborations?: boolean
+
     isLive?: boolean
     privacyOneOf?: VideoPrivacyType[]
     channelNameOneOf: string[]
     search?: string
   }): Observable<ResultList<Video>> {
-    const { videoPagination, restPagination, sort, channelNameOneOf, privacyOneOf, search } = options
+    const { videoPagination, restPagination, sort, channelNameOneOf, privacyOneOf, search, includeCollaborations } = options
 
     const pagination = videoPagination
       ? this.restService.componentToRestPagination(videoPagination)
@@ -147,6 +151,8 @@ export class VideoService {
     if (channelNameOneOf !== undefined && channelNameOneOf.length !== 0) {
       params = this.restService.addArrayParams(params, 'channelNameOneOf', channelNameOneOf)
     }
+
+    if (includeCollaborations) params = params.set('includeCollaborations', 'true')
 
     return this.authHttp
       .get<ResultList<Video>>(UserService.BASE_USERS_URL + 'me/videos', { params })
@@ -224,9 +230,9 @@ export class VideoService {
     let newParams = this.restService.addRestGetParams(params, pagination, this.buildListSort(sort))
 
     if (skipCount) newParams = newParams.set('skipCount', skipCount + '')
-    if (languageOneOf !== undefined) newParams = this.restService.addArrayParams(newParams, 'languageOneOf', languageOneOf)
-    if (categoryOneOf !== undefined) newParams = this.restService.addArrayParams(newParams, 'categoryOneOf', categoryOneOf)
-    if (privacyOneOf !== undefined) newParams = this.restService.addArrayParams(newParams, 'privacyOneOf', privacyOneOf)
+    if (Array.isArray(languageOneOf)) newParams = this.restService.addArrayParams(newParams, 'languageOneOf', languageOneOf)
+    if (Array.isArray(categoryOneOf)) newParams = this.restService.addArrayParams(newParams, 'categoryOneOf', categoryOneOf)
+    if (Array.isArray(privacyOneOf)) newParams = this.restService.addArrayParams(newParams, 'privacyOneOf', privacyOneOf)
     if (search) newParams = newParams.set('search', search)
 
     newParams = this.buildNSFWParams(newParams, { nsfw, nsfwFlagsExcluded, nsfwFlagsIncluded })
@@ -526,6 +532,8 @@ export class VideoService {
       )
   }
 
+  // ---------------------------------------------------------------------------
+
   explainedPrivacyLabels (serverPrivacies: VideoConstant<VideoPrivacyType>[], defaultPrivacyId: VideoPrivacyType = VideoPrivacy.PUBLIC) {
     const descriptions = {
       [VideoPrivacy.PRIVATE]: $localize`Only I can see this video`,
@@ -548,6 +556,30 @@ export class VideoService {
       defaultPrivacyId: serverPrivacies.find(p => p.id === defaultPrivacyId)?.id || serverPrivacies[0].id
     }
   }
+
+  explainedLicenceLabels (serverLicences: VideoConstant<VideoLicenceType>[]) {
+    const descriptions = {
+      [VideoLicence['CC-BY']]: $localize`CC-BY`,
+      [VideoLicence['CC-BY-SA']]: $localize`CC-BY-SA`,
+      [VideoLicence['CC-BY-ND']]: $localize`CC-BY-ND`,
+      [VideoLicence['CC-BY-NC']]: $localize`CC-BY-NC`,
+      [VideoLicence['CC-BY-NC-SA']]: $localize`CC-BY-NC-SA`,
+      [VideoLicence['CC-BY-NC-ND']]: $localize`CC-BY-NC-ND`,
+      [VideoLicence['CC0']]: '',
+      [VideoLicence.PDM]: $localize`Public domain mark`,
+      [VideoLicence['COPYRIGHT']]: $localize`You are the owner of the content or you have the rights of the copyright holders`
+    }
+
+    return serverLicences.map(p => {
+      return {
+        ...p,
+
+        description: descriptions[p.id]
+      }
+    })
+  }
+
+  // ---------------------------------------------------------------------------
 
   buildNSFWTooltip (video: Pick<VideoServerModel, 'nsfw' | 'nsfwFlags'>) {
     const flags: string[] = []

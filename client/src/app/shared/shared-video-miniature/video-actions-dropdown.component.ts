@@ -1,4 +1,3 @@
-import { NgIf } from '@angular/common'
 import { Component, OnChanges, booleanAttribute, inject, input, output, viewChild } from '@angular/core'
 import { AuthService, ConfirmService, Notifier, ScreenService, ServerService } from '@app/core'
 import { NgbDropdown, NgbDropdownAnchor, NgbDropdownMenu } from '@ng-bootstrap/ng-bootstrap'
@@ -8,8 +7,8 @@ import { Actor } from '../shared-main/account/actor.model'
 import {
   ActionDropdownComponent,
   DropdownAction,
-  DropdownButtonSize,
-  DropdownDirection
+  DropdownButtonIcon,
+  DropdownButtonSize
 } from '../shared-main/buttons/action-dropdown.component'
 import { VideoCaptionService } from '../shared-main/video-caption/video-caption.service'
 import { RedundancyService } from '../shared-main/video/redundancy.service'
@@ -44,7 +43,6 @@ export type VideoActionsDisplayType = {
   templateUrl: './video-actions-dropdown.component.html',
   styleUrls: [ './video-actions-dropdown.component.scss' ],
   imports: [
-    NgIf,
     NgbDropdown,
     NgbDropdownAnchor,
     NgbDropdownMenu,
@@ -102,7 +100,7 @@ export class VideoActionsDropdownComponent implements OnChanges {
 
   readonly buttonStyled = input(false, { transform: booleanAttribute })
   readonly buttonSize = input<DropdownButtonSize>('normal')
-  readonly buttonDirection = input<DropdownDirection>('vertical')
+  readonly buttonIcon = input<DropdownButtonIcon>('more-vertical')
 
   readonly transcriptionWidgetOpened = input<boolean>(undefined)
 

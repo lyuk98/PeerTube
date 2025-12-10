@@ -1,4 +1,4 @@
-import { getResolutionAndFPSLabel, getResolutionLabel } from '@peertube/peertube-core-utils'
+import { getResolutionAndFPSLabel, getResolutionLabel, timeToInt } from '@peertube/peertube-core-utils'
 import { LiveVideoLatencyMode } from '@peertube/peertube-models'
 import { logger } from '@root-helpers/logger'
 import { peertubeLocalStorage } from '@root-helpers/peertube-web-storage'
@@ -7,7 +7,13 @@ import debug from 'debug'
 import { Level } from 'hls.js'
 import type { CoreConfig, StreamConfig } from 'p2p-media-loader-core'
 import { getAverageBandwidthInStore } from '../../peertube-player-local-storage'
-import { HLSPluginOptions, P2PMediaLoaderPluginOptions, PeerTubePlayerConstructorOptions, PeerTubePlayerLoadOptions } from '../../types'
+import {
+  HLSPluginOptions,
+  P2PMediaLoaderPluginOptions,
+  PeerTubePlayerConstructorOptions,
+  PeerTubePlayerLoadOptions,
+  VideojsPlayer
+} from '../../types'
 import { getRtcConfig } from '../common'
 import { RedundancyUrlManager } from '../p2p-media-loader/redundancy-url-manager'
 import { SegmentValidator } from '../p2p-media-loader/segment-validator'
@@ -18,7 +24,15 @@ type ConstructorOptions =
   & Pick<PeerTubePlayerConstructorOptions, 'pluginsManager' | 'serverUrl' | 'authorizationHeader' | 'stunServers'>
   & Pick<
     PeerTubePlayerLoadOptions,
-    'videoPassword' | 'requiresUserAuth' | 'videoFileToken' | 'requiresPassword' | 'isLive' | 'liveOptions' | 'p2pEnabled' | 'hls'
+    | 'videoPassword'
+    | 'requiresUserAuth'
+    | 'videoFileToken'
+    | 'requiresPassword'
+    | 'isLive'
+    | 'liveOptions'
+    | 'p2pEnabled'
+    | 'hls'
+    | 'startTime'
   >
 
 export class HLSOptionsBuilder {
@@ -67,7 +81,7 @@ export class HLSOptionsBuilder {
     const hlsjs = {
       hlsjsConfig: this.getHLSJSOptions(p2pMediaLoaderConfig),
 
-      levelLabelHandler: (level: Level, player: videojs.VideoJsPlayer) => {
+      levelLabelHandler: (level: Level, player: VideojsPlayer) => {
         const resolution = Math.min(level.height || 0, level.width || 0)
         const file = this.options.hls.videoFiles.find(f => f.resolution.id === resolution)
 
@@ -110,8 +124,7 @@ export class HLSOptionsBuilder {
       ? this.getP2PMediaLoaderLiveOptions()
       : this.getP2PMediaLoaderVODOptions()
 
-    // TODO: remove validateHTTPSegment typing when p2p-media-loader-core is updated
-    const loaderOptions: Partial<StreamConfig> & { validateHTTPSegment: any } = {
+    const loaderOptions: Partial<StreamConfig> = {
       announceTrackers,
       rtcConfig: getRtcConfig(this.options.stunServers),
 
@@ -204,6 +217,7 @@ export class HLSOptionsBuilder {
     const base: HLSPluginOptions = {
       capLevelToPlayerSize: true,
       autoStartLoad: false,
+      startPosition: timeToInt(this.options.startTime),
 
       p2pMediaLoaderOptions: p2pMediaLoaderConfig.loader,
 

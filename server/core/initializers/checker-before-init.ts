@@ -1,5 +1,5 @@
-import config from 'config'
 import { promisify0 } from '@peertube/peertube-core-utils'
+import config from 'config'
 import { parseSemVersion } from '../helpers/core-utils.js'
 import { logger } from '../helpers/logger.js'
 
@@ -14,6 +14,7 @@ export function checkMissedConfig () {
     'webserver.hostname',
     'webserver.port',
     'secrets.peertube',
+    'http_timeouts.request',
     'trust_proxy',
     'oauth2.token_lifetime.access_token',
     'oauth2.token_lifetime.refresh_token',
@@ -42,6 +43,7 @@ export function checkMissedConfig () {
     'storage.streaming_playlists',
     'storage.plugins',
     'storage.well_known',
+    'storage.uploads',
     'log.level',
     'log.rotation.enabled',
     'log.rotation.max_file_size',
@@ -61,6 +63,7 @@ export function checkMissedConfig () {
     'user.history.videos.enabled',
     'user.video_quota',
     'user.video_quota_daily',
+    'user.password_constraints.min_length',
     'video_channels.max_per_user',
     'csp.enabled',
     'csp.report_only',
@@ -123,14 +126,19 @@ export function checkMissedConfig () {
     'auto_blacklist.videos.of_users.enabled',
     'trending.videos.interval_days',
     'client.videos.miniature.prefer_author_display_name',
+    'client.browse_videos.default_sort',
+    'client.browse_videos.default_scope',
     'client.menu.login.redirect_on_single_external_auth',
+    'client.header.hide_instance_name',
     'defaults.publish.download_enabled',
     'defaults.publish.comments_policy',
     'defaults.publish.privacy',
     'defaults.publish.licence',
     'defaults.player.auto_play',
+    'defaults.player.theme',
     'instance.name',
     'instance.short_description',
+    'instance.default_language',
     'instance.description',
     'instance.terms',
     'instance.default_client_route',
@@ -143,9 +151,11 @@ export function checkMissedConfig () {
     'instance.social.external_link',
     'instance.social.mastodon_link',
     'instance.social.bluesky_link',
+    'instance.social.x_link',
     'services.twitter.username',
     'followers.instance.enabled',
     'followers.instance.manual_approval',
+    'followers.channels.enabled',
     'tracker.enabled',
     'tracker.private',
     'tracker.reject_too_many_announces',
@@ -250,7 +260,8 @@ export function checkMissedConfig () {
     'storyboards.enabled',
     'webrtc.stun_servers',
     'nsfw_flags_settings.enabled',
-    'download_generate_video.max_parallel_downloads'
+    'download_generate_video.max_parallel_downloads',
+    'video_comments.accept_remote_comments'
   ]
 
   const requiredAlternatives = [
@@ -310,11 +321,19 @@ export async function checkFFmpeg (CONFIG: { TRANSCODING: { ENABLED: boolean } }
 
 export function checkNodeVersion () {
   const v = process.version
-  const { major } = parseSemVersion(v)
+  const { major, minor } = parseSemVersion(v)
 
-  logger.debug('Checking NodeJS version %s.', v)
+  logger.debug(`Checking NodeJS version ${v}`)
 
-  if (major <= 12) {
-    throw new Error('Your NodeJS version ' + v + ' is not supported. Please upgrade.')
+  if (major < 20) {
+    throw new Error(`Your NodeJS version ${v} is not supported. Please upgrade.`)
+  }
+
+  if (major === 20 && minor < 19) {
+    throw new Error(`NodeJS v20.19 and above is required`)
+  }
+
+  if (major === 22 && minor < 12) {
+    throw new Error(`NodeJS v22.12 and above is required`)
   }
 }

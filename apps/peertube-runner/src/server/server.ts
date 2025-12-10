@@ -1,15 +1,15 @@
+import { pick, shuffle, wait } from '@peertube/peertube-core-utils'
+import { PeerTubeProblemDocument, RunnerJobType, ServerErrorCode } from '@peertube/peertube-models'
+import { PeerTubeServer as PeerTubeServerCommand } from '@peertube/peertube-server-commands'
 import { ensureDir, remove } from 'fs-extra/esm'
 import { readdir } from 'fs/promises'
 import { join } from 'path'
 import { io, Socket } from 'socket.io-client'
-import { pick, shuffle, wait } from '@peertube/peertube-core-utils'
-import { PeerTubeProblemDocument, RunnerJobType, ServerErrorCode } from '@peertube/peertube-models'
-import { PeerTubeServer as PeerTubeServerCommand } from '@peertube/peertube-server-commands'
 import { ConfigManager } from '../shared/index.js'
 import { IPCServer } from '../shared/ipc/index.js'
 import { logger } from '../shared/logger.js'
 import { JobWithToken, processJob } from './process/index.js'
-import { getSupportedJobsList, isJobSupported } from './shared/index.js'
+import { getSupportedJobsList } from './shared/index.js'
 
 type PeerTubeServer = PeerTubeServerCommand & {
   runnerToken: string
@@ -31,7 +31,7 @@ export class RunnerServer {
 
   private readonly sockets = new Map<PeerTubeServer, Socket>()
 
-  constructor (private readonly enabledJobs?: Set<RunnerJobType>) {
+  constructor (enabledJobs?: Set<RunnerJobType>) {
     this.enabledJobsArray = enabledJobs
       ? Array.from(enabledJobs)
       : getSupportedJobsList()
@@ -57,7 +57,7 @@ export class RunnerServer {
     try {
       await ipcServer.run(this)
     } catch (err) {
-      logger.error('Cannot start local socket for IPC communication', err)
+      logger.error(err, 'Cannot start local socket for IPC communication')
       process.exit(-1)
     }
 
@@ -74,9 +74,11 @@ export class RunnerServer {
 
     // Process jobs
     await ensureDir(ConfigManager.Instance.getTranscodingDirectory())
+    await ensureDir(ConfigManager.Instance.getStoryboardDirectory())
     await this.cleanupTMP()
 
     logger.info(`Using ${ConfigManager.Instance.getTranscodingDirectory()} for transcoding directory`)
+    logger.info(`Using ${ConfigManager.Instance.getStoryboardDirectory()} for storyboard directory`)
 
     this.initialized = true
     await this.checkAvailableJobs()
@@ -95,7 +97,12 @@ export class RunnerServer {
     logger.info(`Registering runner ${runnerName} on ${url}...`)
 
     const serverCommand = new PeerTubeServerCommand({ url })
-    const { runnerToken } = await serverCommand.runners.register({ name: runnerName, description: runnerDescription, registrationToken })
+    const { runnerToken } = await serverCommand.runners.register({
+      name: runnerName,
+      description: runnerDescription,
+      registrationToken,
+      version: process.env.PACKAGE_VERSION
+    })
 
     const server: PeerTubeServer = Object.assign(serverCommand, {
       runnerToken,
@@ -268,18 +275,17 @@ export class RunnerServer {
 
       jobTypes: this.enabledJobsArray.length !== getSupportedJobsList().length
         ? this.enabledJobsArray
-        : undefined
+        : undefined,
+
+      version: process.env.PACKAGE_VERSION
     })
 
-    // FIXME: remove in PeerTube v8: jobTypes has been introduced in PeerTube v7, so do the filter here too
-    const filtered = availableJobs.filter(j => isJobSupported(j, this.enabledJobs))
-
-    if (filtered.length === 0) {
+    if (availableJobs.length === 0) {
       logger.debug(`No job available on ${server.url} for runner ${server.runnerName}`)
       return undefined
     }
 
-    return filtered[0]
+    return availableJobs[0]
   }
 
   private async tryToExecuteJobAsync (server: PeerTubeServer, jobToAccept: { uuid: string }) {
@@ -358,6 +364,8 @@ export class RunnerServer {
 
     try {
       for (const { server, job } of this.processingJobs) {
+        logger.info(`Aborting job ${job.uuid} on ${server.url} as the runner is stopping`)
+
         await server.runnerJobs.abort({
           jobToken: job.jobToken,
           jobUUID: job.uuid,

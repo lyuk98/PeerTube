@@ -8,6 +8,7 @@ import { basename } from 'path'
 import { URL } from 'url'
 import { parseBytes, parseSemVersion } from '../helpers/core-utils.js'
 import { isArray } from '../helpers/custom-validators/misc.js'
+import { getBrowseVideosDefaultSortError, getBrowseVideosDefaultScopeError } from '../helpers/custom-validators/browse-videos.js'
 import { logger } from '../helpers/logger.js'
 import { ApplicationModel, getServerActor } from '../models/application/application.js'
 import { OAuthClientModel } from '../models/oauth/oauth-client.js'
@@ -54,6 +55,7 @@ function checkConfig () {
   checkObjectStorageConfig()
   checkVideoStudioConfig()
   checkThumbnailsConfig()
+  checkBrowseVideosConfig()
 }
 
 // We get db by param to not import it in this file (import orders)
@@ -384,4 +386,12 @@ function checkThumbnailsConfig () {
   if (!isArray(CONFIG.THUMBNAILS.SIZES) || CONFIG.THUMBNAILS.SIZES.length !== 2) {
     throw new Error('thumbnails.sizes must be an array of 2 sizes')
   }
+}
+
+function checkBrowseVideosConfig () {
+  const sortError = getBrowseVideosDefaultSortError(CONFIG.CLIENT.BROWSE_VIDEOS.DEFAULT_SORT, CONFIG.TRENDING.VIDEOS.ALGORITHMS.ENABLED)
+  if (sortError) throw new Error(sortError)
+
+  const scopeError = getBrowseVideosDefaultScopeError(CONFIG.CLIENT.BROWSE_VIDEOS.DEFAULT_SCOPE)
+  if (scopeError) throw new Error(scopeError)
 }

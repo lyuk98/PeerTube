@@ -75,44 +75,44 @@ const videoAttributes = [ 'id', 'name', 'remote', 'uuid', 'url', 'state', 'priva
 })
 export class VideoCaptionModel extends SequelizeModel<VideoCaptionModel> {
   @CreatedAt
-  createdAt: Date
+  declare createdAt: Date
 
   @UpdatedAt
-  updatedAt: Date
+  declare updatedAt: Date
 
   @AllowNull(false)
   @Is('VideoCaptionLanguage', value => throwIfNotValid(value, isVideoCaptionLanguageValid, 'language'))
   @Column
-  language: string
+  declare language: string
 
   @AllowNull(false)
   @Column
-  filename: string
+  declare filename: string
 
   @AllowNull(true)
   @Column
-  m3u8Filename: string
+  declare m3u8Filename: string
 
   @AllowNull(false)
   @Default(FileStorage.FILE_SYSTEM)
   @Column
-  storage: FileStorageType
+  declare storage: FileStorageType
 
   @AllowNull(true)
   @Column(DataType.STRING(CONSTRAINTS_FIELDS.COMMONS.URL.max))
-  fileUrl: string
+  declare fileUrl: string
 
   @AllowNull(true)
   @Column
-  m3u8Url: string
+  declare m3u8Url: string
 
   @AllowNull(false)
   @Column
-  automaticallyGenerated: boolean
+  declare automaticallyGenerated: boolean
 
   @ForeignKey(() => VideoModel)
   @Column
-  videoId: number
+  declare videoId: number
 
   @BelongsTo(() => VideoModel, {
     foreignKey: {
@@ -120,7 +120,7 @@ export class VideoCaptionModel extends SequelizeModel<VideoCaptionModel> {
     },
     onDelete: 'CASCADE'
   })
-  Video: Awaited<VideoModel>
+  declare Video: Awaited<VideoModel>
 
   @BeforeDestroy
   static async removeFiles (instance: VideoCaptionModel, options) {
@@ -128,7 +128,7 @@ export class VideoCaptionModel extends SequelizeModel<VideoCaptionModel> {
       instance.Video = await instance.$get('Video', { transaction: options.transaction })
     }
 
-    if (instance.isOwned()) {
+    if (instance.isLocal()) {
       logger.info('Removing caption %s.', instance.filename)
 
       instance.removeAllCaptionFiles()
@@ -278,7 +278,8 @@ export class VideoCaptionModel extends SequelizeModel<VideoCaptionModel> {
       },
       automaticallyGenerated: this.automaticallyGenerated,
 
-      captionPath: this.Video.isOwned() && this.fileUrl
+      // TODO: remove, deprecated in 8.0
+      captionPath: this.Video.isLocal() && this.fileUrl
         ? null // On object storage
         : this.getFileStaticPath(),
 
@@ -295,27 +296,24 @@ export class VideoCaptionModel extends SequelizeModel<VideoCaptionModel> {
       name: VideoCaptionModel.getLanguageLabel(this.language),
       automaticallyGenerated: this.automaticallyGenerated,
 
-      // TODO: Remove break flag in v8
-      url: process.env.ENABLE_AP_BREAKING_CHANGES === 'true'
-        ? [
-          {
-            type: 'Link',
-            mediaType: 'text/vtt',
-            href: this.getOriginFileUrl(video)
-          },
-          {
-            type: 'Link',
-            mediaType: 'application/x-mpegURL',
-            href: this.getOriginFileUrl(video)
-          }
-        ]
-        : this.getOriginFileUrl(video)
+      url: [
+        {
+          type: 'Link',
+          mediaType: 'text/vtt',
+          href: this.getOriginFileUrl(video)
+        },
+        {
+          type: 'Link',
+          mediaType: 'application/x-mpegURL',
+          href: this.getOriginFileUrl(video)
+        }
+      ]
     }
   }
 
   // ---------------------------------------------------------------------------
 
-  isOwned () {
+  isLocal () {
     return this.Video.remote === false
   }
 
@@ -382,7 +380,7 @@ export class VideoCaptionModel extends SequelizeModel<VideoCaptionModel> {
   // ---------------------------------------------------------------------------
 
   getFileUrl (this: MVideoCaptionUrl, video: MVideoOwned) {
-    if (video.isOwned() && this.storage === FileStorage.OBJECT_STORAGE) {
+    if (video.isLocal() && this.storage === FileStorage.OBJECT_STORAGE) {
       return getObjectStoragePublicFileUrl(this.fileUrl, CONFIG.OBJECT_STORAGE.CAPTIONS)
     }
 
@@ -390,7 +388,7 @@ export class VideoCaptionModel extends SequelizeModel<VideoCaptionModel> {
   }
 
   getOriginFileUrl (this: MVideoCaptionUrl, video: MVideoOwned) {
-    if (video.isOwned()) return this.getFileUrl(video)
+    if (video.isLocal()) return this.getFileUrl(video)
 
     return this.fileUrl
   }
@@ -400,7 +398,7 @@ export class VideoCaptionModel extends SequelizeModel<VideoCaptionModel> {
   getM3U8Url (this: MVideoCaptionUrl, video: MVideoOwned & MVideoPrivacy) {
     if (!this.m3u8Filename) return null
 
-    if (video.isOwned()) {
+    if (video.isLocal()) {
       if (this.storage === FileStorage.OBJECT_STORAGE) {
         return getObjectStoragePublicFileUrl(this.m3u8Url, CONFIG.OBJECT_STORAGE.STREAMING_PLAYLISTS)
       }

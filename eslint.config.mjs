@@ -13,7 +13,8 @@ export default defineConfig([
     'packages/types-generator',
     '*.js',
     'client',
-    'dist'
+    'dist',
+    'server/.i18next-parser.config.ts'
   ]),
 
   {
@@ -84,7 +85,11 @@ export default defineConfig([
       '@typescript-eslint/no-unnecessary-boolean-literal-compare': 'off',
       '@typescript-eslint/strict-boolean-expressions': 'off',
       '@typescript-eslint/consistent-type-definitions': 'off',
-      '@typescript-eslint/no-misused-promises': 'off',
+      '@typescript-eslint/no-misused-promises': [ 'error', {
+        checksConditionals: true,
+        checksSpreads: true,
+        checksVoidReturn: false
+      } ],
       '@typescript-eslint/no-namespace': 'off',
       '@typescript-eslint/no-empty-interface': 'off',
       '@typescript-eslint/no-extraneous-class': 'off',
@@ -145,7 +150,18 @@ export default defineConfig([
       '@typescript-eslint/no-unsafe-function-type': 'off',
 
       // We use many nested callbacks in our tests
-      'max-nested-callbacks': 'off'
+      'max-nested-callbacks': 'off',
+
+      'import/enforce-node-protocol-usage': 'off',
+      'no-param-reassign': 'off',
+      'no-plusplus': 'off',
+      'radix': 'off',
+      'no-negated-condition': 'off',
+      'no-promise-executor-return': 'off',
+      '@typescript-eslint/no-unnecessary-type-conversion': 'off',
+      'prefer-spread': 'off',
+      'import/enforce-node-protocol-usage': 'off',
+      'prefer-spread': 'off'
     },
 
     languageOptions: {

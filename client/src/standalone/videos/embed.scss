@@ -7,14 +7,14 @@
   display: none !important;
 }
 
-body {
+:root {
   @include define-css-variables();
+}
 
-  & {
-    font-family: $main-fonts;
-    font-weight: $font-regular;
-    color: #000;
-  }
+body {
+  font-family: $main-fonts;
+  font-weight: $font-regular;
+  color: #000;
 }
 
 video {

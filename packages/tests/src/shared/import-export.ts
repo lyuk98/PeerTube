@@ -33,7 +33,7 @@ import { tmpdir } from 'os'
 import { basename, join, resolve } from 'path'
 import { testFileExistsOnFSOrNot } from './checks.js'
 import { MockSmtpServer } from './mock-servers/mock-email.js'
-import { getAllNotificationsSettings } from './notifications.js'
+import { getAllNotificationsSettings } from './notifications/notifications-common.js'
 
 type ExportOutbox = ActivityPubOrderedCollection<ActivityCreate<VideoObject | VideoCommentObject>>
 
@@ -211,13 +211,17 @@ export async function prepareImportExportTests (options: {
     fixture: 'avatar.png',
     type: 'avatar'
   })
+  await server.playerSettings.updateForChannel({ channelHandle: 'noah_second_channel', theme: 'galaxy' })
 
   // Videos
   const externalVideo = await remoteServer.videos.quickUpload({ name: 'external video', privacy: VideoPrivacy.PUBLIC })
 
   // eslint-disable-next-line max-len
   const noahPrivateVideo = await server.videos.quickUpload({ name: 'noah private video', token: noahToken, privacy: VideoPrivacy.PRIVATE })
+
   const noahVideo = await server.videos.quickUpload({ name: 'noah public video', token: noahToken, privacy: VideoPrivacy.PUBLIC })
+  await server.playerSettings.updateForVideo({ videoId: noahVideo.uuid, theme: 'lucide' })
+
   // eslint-disable-next-line max-len
   const noahVideo2 = await server.videos.upload({
     token: noahToken,
@@ -262,7 +266,7 @@ export async function prepareImportExportTests (options: {
   })
 
   // My settings
-  await server.users.updateMe({ token: noahToken, description: 'super noah description', p2pEnabled: false })
+  await server.users.updateMe({ token: noahToken, description: 'super noah description', p2pEnabled: false, language: 'fr' })
 
   // My notification settings
   await server.notifications.updateMySettings({
@@ -337,7 +341,10 @@ export async function prepareImportExportTests (options: {
       videoPasswords: [ 'password1' ],
       channelId: noahSecondChannelId,
       name: 'noah live video',
-      privacy: VideoPrivacy.PASSWORD_PROTECTED
+      privacy: VideoPrivacy.PASSWORD_PROTECTED,
+      schedules: [
+        { startAt: new Date(Date.now() + 1000 * 60 * 60).toISOString() }
+      ]
     },
     token: noahToken
   })
@@ -367,6 +374,11 @@ export async function prepareImportExportTests (options: {
     token: noahToken
   })
 
+  await waitJobs([ server, remoteServer ])
+
+  const { data: noahVideos } = await server.videos.listMyVideos({ token: noahToken, sort: '-publishedAt' })
+  const noahVODNames = noahVideos.filter(v => !v.isLive).map(v => v.name)
+
   return {
     rootId,
 
@@ -388,6 +400,8 @@ export async function prepareImportExportTests (options: {
 
     server,
     remoteServer,
-    blockedServer
+    blockedServer,
+
+    noahVODNames
   }
 }

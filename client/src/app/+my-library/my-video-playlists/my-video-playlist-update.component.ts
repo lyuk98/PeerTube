@@ -1,5 +1,5 @@
-import { NgClass, NgIf } from '@angular/common'
-import { Component, OnDestroy, OnInit, inject } from '@angular/core'
+import { CommonModule, NgClass } from '@angular/common'
+import { Component, inject, OnDestroy, OnInit } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import { AuthService, Notifier, ServerService } from '@app/core'
@@ -12,6 +12,7 @@ import {
   VIDEO_PLAYLIST_PRIVACY_VALIDATOR
 } from '@app/shared/form-validators/video-playlist-validators'
 import { FormReactiveService } from '@app/shared/shared-forms/form-reactive.service'
+import { PeertubeCheckboxComponent } from '@app/shared/shared-forms/peertube-checkbox.component'
 import { AlertComponent } from '@app/shared/shared-main/common/alert.component'
 import { VideoPlaylistService } from '@app/shared/shared-video-playlist/video-playlist.service'
 import { VideoPlaylistUpdate } from '@peertube/peertube-models'
@@ -28,7 +29,7 @@ import { MyVideoPlaylistEdit } from './my-video-playlist-edit'
   templateUrl: './my-video-playlist-edit.component.html',
   styleUrls: [ './my-video-playlist-edit.component.scss' ],
   imports: [
-    NgIf,
+    CommonModule,
     RouterLink,
     FormsModule,
     ReactiveFormsModule,
@@ -38,7 +39,8 @@ import { MyVideoPlaylistEdit } from './my-video-playlist-edit'
     MarkdownTextareaComponent,
     SelectOptionsComponent,
     SelectChannelComponent,
-    AlertComponent
+    AlertComponent,
+    PeertubeCheckboxComponent
   ]
 })
 export class MyVideoPlaylistUpdateComponent extends MyVideoPlaylistEdit implements OnInit, OnDestroy {
@@ -67,23 +69,22 @@ export class MyVideoPlaylistUpdateComponent extends MyVideoPlaylistEdit implemen
       setPlaylistChannelValidator(this.form.get('videoChannelId'), privacy)
     })
 
-    listUserChannelsForSelect(this.authService)
-      .subscribe(channels => this.userVideoChannels = channels)
-
     this.paramsSub = this.route.params
       .pipe(
         map(routeParams => routeParams['videoPlaylistId']),
         switchMap(videoPlaylistId => {
           return forkJoin([
             this.videoPlaylistService.getVideoPlaylist(videoPlaylistId),
-            this.serverService.getVideoPlaylistPrivacies()
+            this.serverService.getVideoPlaylistPrivacies(),
+            listUserChannelsForSelect(this.authService, { includeCollaborations: true })
           ])
         })
       )
       .subscribe({
-        next: ([ videoPlaylistToUpdate, videoPlaylistPrivacies ]) => {
+        next: ([ videoPlaylistToUpdate, videoPlaylistPrivacies, channels ]) => {
           this.videoPlaylistToUpdate = videoPlaylistToUpdate
           this.videoPlaylistPrivacies = videoPlaylistPrivacies
+          this.userVideoChannels = channels.filter(c => c.ownerAccountId === this.videoPlaylistToUpdate.ownerAccount.id)
 
           this.hydrateFormFromPlaylist()
         },
@@ -129,6 +130,16 @@ export class MyVideoPlaylistUpdateComponent extends MyVideoPlaylistEdit implemen
 
   getFormButtonTitle () {
     return $localize`Update`
+  }
+
+  isEditor () {
+    if (!this.videoPlaylistToUpdate) return false
+
+    return this.videoPlaylistToUpdate?.ownerAccount.id !== this.authService.getUser().account.id
+  }
+
+  getOwnerAccountDisplayName () {
+    return this.videoPlaylistToUpdate?.ownerAccount.displayName
   }
 
   private hydrateFormFromPlaylist () {

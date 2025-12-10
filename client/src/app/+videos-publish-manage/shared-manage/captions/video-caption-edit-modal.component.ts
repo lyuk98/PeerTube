@@ -1,4 +1,4 @@
-import { NgClass, NgIf } from '@angular/common'
+import { NgClass } from '@angular/common'
 import { ChangeDetectorRef, Component, ElementRef, OnInit, inject, viewChild } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { VideoCaptionEdit, VideoCaptionWithPathEdit } from '@app/+videos-publish-manage/shared-manage/common/video-caption-edit.model'
@@ -42,7 +42,6 @@ type Segment = {
     ReactiveFormsModule,
     GlobalIconComponent,
     NgClass,
-    NgIf,
     PeertubeCheckboxComponent,
     EmbedComponent,
     EditButtonComponent,
@@ -341,7 +340,6 @@ export class VideoCaptionEditModalComponent extends FormReactive implements OnIn
 
   updateCaption () {
     if (this.segmentToUpdate) {
-      console.log(this.segmentToUpdate)
       this.notifier.error($localize`A segment is being edited. Save or cancel your edits first.`)
       return
     }

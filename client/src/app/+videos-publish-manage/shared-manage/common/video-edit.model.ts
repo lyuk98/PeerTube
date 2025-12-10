@@ -6,6 +6,8 @@ import {
   LiveVideoCreate,
   LiveVideoUpdate,
   NSFWFlag,
+  PlayerVideoSettings,
+  PlayerVideoSettingsUpdate,
   VideoCaption,
   VideoChapter,
   VideoCreate,
@@ -26,6 +28,7 @@ import debug from 'debug'
 import { Jsonify, SharedUnionFieldsDeep } from 'type-fest'
 import { VideoCaptionWithPathEdit } from './video-caption-edit.model'
 import { VideoChaptersEdit } from './video-chapters-edit.model'
+import { AuthUser } from '@app/core'
 
 const debugLogger = debug('peertube:video-manage:video-edit')
 
@@ -34,7 +37,7 @@ export type VideoEditPrivacyType = VideoPrivacyType | typeof VideoEdit.SPECIAL_S
 type CommonUpdateForm =
   & Omit<
     VideoUpdate,
-    'privacy' | 'videoPasswords' | 'thumbnailfile' | 'scheduleUpdate' | 'commentsEnabled' | 'originallyPublishedAt' | 'nsfwFlags'
+    'privacy' | 'videoPasswords' | 'thumbnailfile' | 'scheduleUpdate' | 'originallyPublishedAt' | 'nsfwFlags'
   >
   & {
     schedulePublicationAt?: Date
@@ -46,9 +49,12 @@ type CommonUpdateForm =
     nsfwFlagSex?: boolean
   }
 
-type LiveUpdateForm = Omit<LiveVideoUpdate, 'replaySettings'> & {
+type LiveUpdateForm = Omit<LiveVideoUpdate, 'replaySettings' | 'schedules'> & {
   replayPrivacy?: VideoPrivacyType
   liveStreamKey?: string
+  schedules?: {
+    startAt?: Date
+  }[]
 }
 
 type ReplaceFileForm = {
@@ -62,9 +68,13 @@ type StudioForm = {
   'add-watermark'?: { file?: File }
 }
 
+type PlayerSettingsForm = PlayerVideoSettingsUpdate
+
 // ---------------------------------------------------------------------------
 
-type LoadFromPublishOptions = Required<Pick<VideoCreate, 'channelId' | 'support'>> & Partial<Pick<VideoCreate, 'name'>>
+type LoadFromPublishOptions = Required<Pick<VideoCreate, 'channelId' | 'support'>> & Partial<Pick<VideoCreate, 'name'>> & {
+  user: AuthUser
+}
 
 type CreateFromUploadOptions = LoadFromPublishOptions & Required<Pick<VideoCreate, 'name'>>
 
@@ -72,7 +82,7 @@ type CreateFromImportOptions = LoadFromPublishOptions & Pick<VideoImportCreate, 
 
 type CreateFromLiveOptions =
   & CreateFromUploadOptions
-  & Required<Pick<LiveVideoCreate, 'permanentLive' | 'latencyMode' | 'saveReplay' | 'replaySettings'>>
+  & Required<Pick<LiveVideoCreate, 'permanentLive' | 'latencyMode' | 'saveReplay' | 'replaySettings' | 'schedules'>>
 
 type UpdateFromAPIOptions = {
   video?: Pick<
@@ -112,6 +122,7 @@ type UpdateFromAPIOptions = {
   captions?: VideoCaption[]
   videoPasswords?: string[]
   videoSource?: VideoSource
+  playerSettings: PlayerVideoSettings
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +135,12 @@ type CommonUpdate = Omit<VideoUpdate, 'thumbnailfile' | 'originallyPublishedAt' 
   }
 }
 
+type LiveUpdate = Omit<LiveVideoUpdate, 'schedules'> & {
+  schedules?: {
+    startAt: string
+  }[]
+}
+
 export class VideoEdit {
   static readonly SPECIAL_SCHEDULED_PRIVACY = -1
 
@@ -131,9 +148,10 @@ export class VideoEdit {
   private common: CommonUpdate = {}
   private captions: VideoCaptionWithPathEdit[] = []
   private chapters: VideoChaptersEdit = new VideoChaptersEdit()
-  private live: LiveVideoUpdate
+  private live: LiveUpdate
   private replaceFile: File
   private studioTasks: VideoStudioTask[] = []
+  private playerSettings: PlayerVideoSettings
 
   private videoImport: Pick<VideoImportCreate, 'magnetUri' | 'torrentfile' | 'targetUrl'>
 
@@ -148,6 +166,9 @@ export class VideoEdit {
     duration: number
     likes: number
     blacklisted: boolean
+
+    ownerAccountId: number
+    ownerAccountDisplayName: string
 
     live: Pick<LiveVideo, 'rtmpUrl' | 'rtmpsUrl' | 'streamKey'>
     videoSource: VideoSource
@@ -168,6 +189,9 @@ export class VideoEdit {
 
     blacklisted: boolean
 
+    ownerAccountId: number
+    ownerAccountDisplayName: string
+
     live?: Pick<LiveVideo, 'rtmpUrl' | 'rtmpsUrl' | 'streamKey'>
   }
 
@@ -175,7 +199,8 @@ export class VideoEdit {
     common?: Omit<CommonUpdate, 'pluginData' | 'previewfile'>
     previewfile?: { size: number }
 
-    live?: LiveVideoUpdate
+    live?: LiveUpdate
+    playerSettings?: PlayerVideoSettings
 
     pluginData?: any
     pluginDefaults?: Record<string, string | boolean>
@@ -236,8 +261,13 @@ export class VideoEdit {
       permanentLive: options.permanentLive,
 
       saveReplay: options.saveReplay,
+
       replaySettings: options.replaySettings
         ? { privacy: options.replaySettings.privacy }
+        : undefined,
+
+      schedules: options.schedules
+        ? options.schedules.map(s => ({ startAt: new Date(s.startAt).toISOString() }))
         : undefined
     }
 
@@ -267,6 +297,9 @@ export class VideoEdit {
     this.metadata.views = 0
     this.metadata.likes = 0
 
+    this.metadata.ownerAccountDisplayName = options.user.account.displayName
+    this.metadata.ownerAccountId = options.user.account.id
+
     this.updateAfterChange()
   }
 
@@ -279,13 +312,14 @@ export class VideoEdit {
     return videoEdit
   }
 
-  async loadFromAPI (options: UpdateFromAPIOptions) {
-    const { video, videoPasswords, live, chapters, captions, videoSource } = options
+  async loadFromAPI (options: UpdateFromAPIOptions & { loadPrivacy?: boolean }) {
+    const { video, videoPasswords, live, chapters, captions, videoSource, playerSettings, loadPrivacy = true } = options
 
     debugLogger('Load from API', options)
 
-    this.loadVideo({ video, videoPasswords, saveInStore: true })
+    this.loadVideo({ video, videoPasswords, saveInStore: true, loadPrivacy })
     this.loadLive(live)
+    this.loadPlayerSettings(playerSettings)
 
     if (captions !== undefined) {
       this.captions = captions
@@ -308,18 +342,21 @@ export class VideoEdit {
   private loadVideo (options: {
     video: UpdateFromAPIOptions['video']
     videoPasswords?: string[]
+    loadPrivacy?: boolean // default true
     saveInStore: boolean
   }) {
-    const { video, saveInStore, videoPasswords = [] } = options
+    const { video, saveInStore, loadPrivacy = true, videoPasswords = [] } = options
 
     if (video === undefined) return
 
-    const buildObj: () => CommonUpdate = () => {
-      return {
+    const buildObj: (options: { loadPrivacy: boolean }) => CommonUpdate = () => {
+      const { loadPrivacy } = options
+
+      const base = {
         ...this.common,
 
         name: video.name || '',
-        privacy: video.privacy?.id ?? null,
+
         channelId: video.channel?.id ?? null,
         category: video.category?.id ?? null,
         licence: video.licence?.id ?? null,
@@ -347,12 +384,18 @@ export class VideoEdit {
 
         videoPasswords: videoPasswords ?? []
       }
+
+      if (loadPrivacy) {
+        return { ...base, privacy: video.privacy?.id ?? null }
+      }
+
+      return base
     }
 
-    this.common = buildObj()
+    this.common = buildObj({ loadPrivacy })
 
     if (saveInStore) {
-      const obj = buildObj()
+      const obj = buildObj({ loadPrivacy: true })
       this.saveStore.common = omit(obj, [ 'pluginData', 'previewfile' ])
 
       // Apply plugin defaults so we correctly detect changes
@@ -374,6 +417,9 @@ export class VideoEdit {
     this.metadata.blacklisted = video.blacklisted
 
     this.metadata.isLive = video.isLive
+
+    this.metadata.ownerAccountDisplayName = video.channel.ownerAccount.displayName
+    this.metadata.ownerAccountId = video.channel.ownerAccount.id
   }
 
   loadPluginDataDefaults (pluginDefaults: Record<string, string | boolean>) {
@@ -411,6 +457,10 @@ export class VideoEdit {
 
         replaySettings: live.replaySettings
           ? { privacy: live.replaySettings.privacy }
+          : undefined,
+
+        schedules: live.schedules
+          ? live.schedules.map(s => ({ startAt: new Date(s.startAt).toISOString() }))
           : undefined
       }
     }
@@ -420,6 +470,17 @@ export class VideoEdit {
     this.saveStore.live = buildObj()
 
     this.metadata.live = pick(live, [ 'rtmpUrl', 'rtmpsUrl', 'streamKey' ])
+  }
+
+  private loadPlayerSettings (playerSettings: UpdateFromAPIOptions['playerSettings']) {
+    const buildObj = () => {
+      return {
+        theme: playerSettings.theme
+      }
+    }
+
+    this.playerSettings = buildObj()
+    this.saveStore.playerSettings = buildObj()
   }
 
   loadAfterPublish (options: {
@@ -562,7 +623,7 @@ export class VideoEdit {
     return json
   }
 
-  toVideoUpdate (): Required<Omit<VideoUpdate, 'commentsEnabled'>> {
+  toVideoUpdate (): Required<VideoUpdate> {
     return {
       ...this.toVideoCreateOrUpdate(),
 
@@ -570,7 +631,7 @@ export class VideoEdit {
     }
   }
 
-  toVideoCreate (overriddenPrivacy: VideoPrivacyType): Required<Omit<VideoCreate, 'commentsEnabled' | 'generateTranscription'>> {
+  toVideoCreate (overriddenPrivacy: VideoPrivacyType): Required<Omit<VideoCreate, 'generateTranscription'>> {
     return {
       ...this.toVideoCreateOrUpdate(),
 
@@ -578,7 +639,7 @@ export class VideoEdit {
     }
   }
 
-  private toVideoCreateOrUpdate (): Required<Omit<SharedUnionFieldsDeep<VideoCreate | VideoUpdate>, 'commentsEnabled'>> {
+  private toVideoCreateOrUpdate (): Required<SharedUnionFieldsDeep<VideoCreate | VideoUpdate>> {
     return {
       name: this.common.name,
       category: this.common.category || null,
@@ -620,6 +681,16 @@ export class VideoEdit {
         : undefined
     }
 
+    if (values.schedules !== undefined) {
+      if (values.schedules === null || values.schedules.length === 0 || !values.schedules[0].startAt) {
+        this.live.schedules = []
+      } else {
+        this.live.schedules = values.schedules.map(s => ({
+          startAt: new Date(s.startAt).toISOString()
+        }))
+      }
+    }
+
     this.updateAfterChange()
   }
 
@@ -632,7 +703,11 @@ export class VideoEdit {
 
       replayPrivacy: this.live.replaySettings
         ? this.live.replaySettings.privacy
-        : VideoPrivacy.PRIVATE
+        : VideoPrivacy.PRIVATE,
+
+      schedules: this.live.schedules?.map(s => ({
+        startAt: new Date(s.startAt)
+      }))
     }
   }
 
@@ -643,7 +718,9 @@ export class VideoEdit {
       replaySettings: this.live.saveReplay
         ? this.live.replaySettings
         : undefined,
-      latencyMode: this.live.latencyMode
+      latencyMode: this.live.latencyMode,
+
+      schedules: this.live.schedules
     }
   }
 
@@ -654,7 +731,8 @@ export class VideoEdit {
       permanentLive: this.live.permanentLive,
       latencyMode: this.live.latencyMode,
       saveReplay: this.live.saveReplay,
-      replaySettings: this.live.replaySettings
+      replaySettings: this.live.replaySettings,
+      schedules: this.live.schedules
     }
   }
 
@@ -753,6 +831,26 @@ export class VideoEdit {
 
   // ---------------------------------------------------------------------------
 
+  loadFromPlayerSettingsForm (values: PlayerSettingsForm) {
+    this.playerSettings = values
+  }
+
+  toPlayerSettingsFormPatch (): Required<PlayerSettingsForm> {
+    return {
+      theme: this.playerSettings?.theme ?? 'channel-default'
+    }
+  }
+
+  toPlayerSettingsUpdate (): PlayerVideoSettingsUpdate {
+    if (!this.playerSettings) return undefined
+
+    return {
+      theme: this.playerSettings.theme
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+
   getVideoSource () {
     return this.metadata.videoSource
   }
@@ -779,6 +877,10 @@ export class VideoEdit {
 
   getStudioTasks () {
     return this.studioTasks
+  }
+
+  getPlayerSettings () {
+    return this.playerSettings
   }
 
   getStudioTasksSummary () {
@@ -897,6 +999,21 @@ export class VideoEdit {
     return changes
   }
 
+  hasPlayerSettingsChanges () {
+    if (!this.playerSettings) return false
+    if (!this.saveStore.playerSettings) return true
+
+    const changes = !this.areSameObjects(this.playerSettings, this.saveStore.playerSettings)
+
+    debugLogger('Check if player settings has changes', {
+      playerSettings: this.playerSettings,
+      savePlayerSettings: this.saveStore.playerSettings,
+      changes
+    })
+
+    return changes
+  }
+
   // ---------------------------------------------------------------------------
 
   hasPendingChanges () {
@@ -906,7 +1023,8 @@ export class VideoEdit {
       this.hasStudioTasks() ||
       this.hasChaptersChanges() ||
       this.hasCommonChanges() ||
-      this.hasPluginDataChanges()
+      this.hasPluginDataChanges() ||
+      this.hasPlayerSettingsChanges()
   }
 
   // ---------------------------------------------------------------------------
@@ -929,6 +1047,9 @@ export class VideoEdit {
       likes: this.metadata.likes,
       duration: this.metadata.duration,
       blacklisted: this.metadata.blacklisted,
+
+      ownerAccountId: this.metadata.ownerAccountId,
+      ownerAccountDisplayName: this.metadata.ownerAccountDisplayName,
 
       live: this.metadata.live
     }

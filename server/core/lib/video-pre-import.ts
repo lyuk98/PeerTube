@@ -2,6 +2,7 @@ import {
   NSFWFlag,
   ThumbnailType,
   ThumbnailType_Type,
+  VideoChannelActivityAction,
   VideoImportCreate,
   VideoImportPayload,
   VideoImportState,
@@ -18,7 +19,8 @@ import { sequelizeTypescript } from '@server/initializers/database.js'
 import { Hooks } from '@server/lib/plugins/hooks.js'
 import { ServerConfigManager } from '@server/lib/server-config-manager.js'
 import { autoBlacklistVideoIfNeeded } from '@server/lib/video-blacklist.js'
-import { buildCommentsPolicy, setVideoTags } from '@server/lib/video.js'
+import { setVideoTags } from '@server/lib/video.js'
+import { VideoChannelActivityModel } from '@server/models/video/video-channel-activity.js'
 import { VideoImportModel } from '@server/models/video/video-import.js'
 import { VideoPasswordModel } from '@server/models/video/video-password.js'
 import { VideoModel } from '@server/models/video/video.js'
@@ -27,7 +29,7 @@ import {
   MChannelAccountDefault,
   MChannelSync,
   MThumbnail,
-  MUser,
+  MUserAccountId,
   MVideo,
   MVideoAccountDefault,
   MVideoImportFormattable,
@@ -73,7 +75,7 @@ async function insertFromImportIntoDB (parameters: {
   videoChannel: MChannelAccountDefault
   tags: string[]
   videoImportAttributes: FilteredModelAttributes<VideoImportModel>
-  user: MUser
+  user: MUserAccountId
   videoPasswords?: string[]
 }): Promise<MVideoImportFormattable> {
   const { video, thumbnailModel, previewModel, videoChannel, tags, videoImportAttributes, user, videoPasswords } = parameters
@@ -81,7 +83,6 @@ async function insertFromImportIntoDB (parameters: {
   const videoImport = await sequelizeTypescript.transaction(async t => {
     const sequelizeOptions = { transaction: t }
 
-    // eslint-disable-next-line max-len
     const videoCreated = await video.save(
       sequelizeOptions
     ) as (MVideoAccountDefault & MVideoWithBlacklistLight & MVideoTag & MVideoThumbnail)
@@ -113,6 +114,15 @@ async function insertFromImportIntoDB (parameters: {
     ) as MVideoImportFormattable
     videoImport.Video = videoCreated
 
+    await VideoChannelActivityModel.addVideoImportActivity({
+      action: VideoChannelActivityAction.CREATE,
+      channel: videoChannel,
+      videoImport,
+      video: videoCreated,
+      user,
+      transaction: t
+    })
+
     return videoImport
   })
 
@@ -131,7 +141,7 @@ async function buildVideoFromImport ({ channelId, importData, importDataOverride
     category: importDataOverride?.category || importData.category,
     licence: importDataOverride?.licence ?? importData.licence ?? CONFIG.DEFAULTS.PUBLISH.LICENCE,
     language: importDataOverride?.language || importData.language,
-    commentsPolicy: buildCommentsPolicy(importDataOverride),
+    commentsPolicy: importDataOverride?.commentsPolicy ?? CONFIG.DEFAULTS.PUBLISH.COMMENTS_POLICY,
     downloadEnabled: importDataOverride?.downloadEnabled ?? CONFIG.DEFAULTS.PUBLISH.DOWNLOAD_ENABLED,
     waitTranscoding: importDataOverride?.waitTranscoding ?? true,
     state: VideoState.TO_IMPORT,
@@ -164,7 +174,7 @@ async function buildVideoFromImport ({ channelId, importData, importDataOverride
 async function buildYoutubeDLImport (options: {
   targetUrl: string
   channel: MChannelAccountDefault
-  user: MUser
+  user: MUserAccountId
   channelSync?: MChannelSync
   importDataOverride?: Partial<VideoImportCreate>
   thumbnailFilePath?: string
@@ -271,6 +281,9 @@ async function buildYoutubeDLImport (options: {
     // If part of a sync process, there is a parent job that will aggregate children results
     preventException: !!channelSync
   }
+
+  videoImport.payload = payload
+  await videoImport.save()
 
   return {
     videoImport,

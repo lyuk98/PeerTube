@@ -22,6 +22,7 @@ import {
   getLocalVideoCommentsActivityPubUrl,
   getLocalVideoDislikesActivityPubUrl,
   getLocalVideoLikesActivityPubUrl,
+  getLocalVideoPlayerSettingsActivityPubUrl,
   getLocalVideoSharesActivityPubUrl
 } from '../../../lib/activitypub/url.js'
 import { MStreamingPlaylistFiles, MUserId, MVideo, MVideoAP, MVideoFile } from '../../../types/models/index.js'
@@ -80,7 +81,6 @@ export function videoModelToActivityPubObject (video: MVideoAP): VideoObject {
 
     state: video.state,
 
-    commentsEnabled: video.commentsPolicy !== VideoCommentPolicy.DISABLED,
     canReply: video.commentsPolicy === VideoCommentPolicy.ENABLED
       ? null
       : getAPPublicValue(), // Requires approval
@@ -93,6 +93,10 @@ export function videoModelToActivityPubObject (video: MVideoAP): VideoObject {
     originallyPublishedAt: video.originallyPublishedAt
       ? video.originallyPublishedAt.toISOString()
       : null,
+
+    schedules: (video.VideoLive?.LiveSchedules || []).map(s => ({
+      startDate: s.startAt
+    })),
 
     updated: video.updatedAt.toISOString(),
 
@@ -119,16 +123,11 @@ export function videoModelToActivityPubObject (video: MVideoAP): VideoObject {
     shares: getLocalVideoSharesActivityPubUrl(video),
     comments: getLocalVideoCommentsActivityPubUrl(video),
     hasParts: getLocalVideoChaptersActivityPubUrl(video),
+    playerSettings: getLocalVideoPlayerSettingsActivityPubUrl(video),
 
     attributedTo: [
-      {
-        type: 'Person',
-        id: video.VideoChannel.Account.Actor.url
-      },
-      {
-        type: 'Group',
-        id: video.VideoChannel.Actor.url
-      }
+      video.VideoChannel.Account.Actor.url,
+      video.VideoChannel.Actor.url
     ],
 
     ...buildLiveAPAttributes(video)

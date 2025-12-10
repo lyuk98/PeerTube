@@ -50,10 +50,10 @@ export class VideoFilters {
   private nsfwFlagsBlurred: number
 
   private defaultValues = new Map<keyof VideoFilters, any>([
-    [ 'sort', '-publishedAt' ],
+    [ 'sort', undefined ],
     [ 'languageOneOf', undefined ],
     [ 'categoryOneOf', undefined ],
-    [ 'scope', 'federated' ],
+    [ 'scope', undefined ],
     [ 'allVideos', false ],
     [ 'live', 'both' ],
     [ 'search', '' ]
@@ -110,6 +110,10 @@ export class VideoFilters {
 
   setDefaultSort (sort: string) {
     this.defaultValues.set('sort', sort)
+  }
+
+  setDefaultLanguages (languages: string[]) {
+    this.defaultValues.set('languageOneOf', languages)
   }
 
   setNSFWPolicy (user: Pick<User, 'nsfwPolicy' | 'nsfwFlagsDisplayed' | 'nsfwFlagsHidden' | 'nsfwFlagsWarned' | 'nsfwFlagsBlurred'>) {

@@ -1,5 +1,5 @@
 import { buildAspectRatio } from '@peertube/peertube-core-utils'
-import { HttpStatusCode, UserRight, VideoState } from '@peertube/peertube-models'
+import { HttpStatusCode, VideoChannelActivityAction, VideoState } from '@peertube/peertube-models'
 import { sequelizeTypescript } from '@server/initializers/database.js'
 import { CreateJobArgument, CreateJobOptions, JobQueue } from '@server/lib/job-queue/index.js'
 import { Hooks } from '@server/lib/plugins/hooks.js'
@@ -8,10 +8,11 @@ import { setupUploadResumableRoutes } from '@server/lib/uploadx.js'
 import { autoBlacklistVideoIfNeeded } from '@server/lib/video-blacklist.js'
 import { regenerateTranscriptionTaskIfNeeded } from '@server/lib/video-captions.js'
 import { buildNewFile, createVideoSource } from '@server/lib/video-file.js'
-import { buildMoveVideoJob, buildStoryboardJobIfNeeded } from '@server/lib/video-jobs.js'
+import { addRemoteStoryboardJobIfNeeded, buildLocalStoryboardJobIfNeeded, buildMoveVideoJob } from '@server/lib/video-jobs.js'
 import { VideoPathManager } from '@server/lib/video-path-manager.js'
 import { buildNextVideoState } from '@server/lib/video-state.js'
 import { openapiOperationDoc } from '@server/middlewares/doc.js'
+import { VideoChannelActivityModel } from '@server/models/video/video-channel-activity.js'
 import { VideoModel } from '@server/models/video/video.js'
 import { MStreamingPlaylistFiles, MVideo, MVideoFile, MVideoFullLight } from '@server/types/models/index.js'
 import express from 'express'
@@ -20,7 +21,6 @@ import { logger, loggerTagsFactory } from '../../../helpers/logger.js'
 import {
   asyncMiddleware,
   authenticate,
-  ensureUserHasRight,
   replaceVideoSourceResumableInitValidator,
   replaceVideoSourceResumableValidator,
   videoSourceGetLatestValidator
@@ -42,7 +42,6 @@ videoSourceRouter.delete(
   '/:id/source/file',
   openapiOperationDoc({ operationId: 'deleteVideoSourceFile' }),
   authenticate,
-  ensureUserHasRight(UserRight.MANAGE_VIDEO_FILES),
   asyncMiddleware(videoSourceGetLatestValidator),
   asyncMiddleware(deleteVideoLatestSourceFile)
 )
@@ -74,6 +73,14 @@ async function deleteVideoLatestSourceFile (req: express.Request, res: express.R
   videoSource.storage = null
 
   await videoSource.save()
+
+  await VideoChannelActivityModel.addVideoActivity({
+    action: VideoChannelActivityAction.UPDATE_SOURCE_FILE,
+    user: res.locals.oauth.token.User,
+    channel: video.VideoChannel,
+    video,
+    transaction: null
+  })
 
   return res.sendStatus(HttpStatusCode.NO_CONTENT_204)
 }
@@ -134,6 +141,14 @@ async function replaceVideoSourceResumable (req: express.Request, res: express.R
         transaction
       })
 
+      await VideoChannelActivityModel.addVideoActivity({
+        action: VideoChannelActivityAction.UPDATE_SOURCE_FILE,
+        user,
+        channel: video.VideoChannel,
+        video,
+        transaction
+      })
+
       return video
     })
 
@@ -149,6 +164,7 @@ async function replaceVideoSourceResumable (req: express.Request, res: express.R
 
     await regenerateMiniaturesIfNeeded(video, res.locals.ffprobe)
     await video.VideoChannel.setAsUpdated()
+
     await addVideoJobsAfterUpload(video, videoFile.withVideoOrPlaylist(video))
 
     logger.info('Replaced video file of video %s with uuid %s.', video.name, video.uuid, lTags(video.uuid))
@@ -172,7 +188,7 @@ async function addVideoJobsAfterUpload (video: MVideoFullLight, videoFile: MVide
       }
     },
 
-    buildStoryboardJobIfNeeded({ video, federate: false }),
+    await buildLocalStoryboardJobIfNeeded({ video, federate: false }),
 
     {
       type: 'federate-video' as const,
@@ -201,6 +217,7 @@ async function addVideoJobsAfterUpload (video: MVideoFullLight, videoFile: MVide
 
   await JobQueue.Instance.createSequentialJobFlow(...jobs)
 
+  await addRemoteStoryboardJobIfNeeded(video)
   await regenerateTranscriptionTaskIfNeeded(video)
 }
 

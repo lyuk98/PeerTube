@@ -5,6 +5,7 @@ import {
   MAccountActor,
   MAccountDefault,
   MAccountFormattable,
+  MAccountId,
   MAccountIdActorId,
   MAccountLight,
   MAccountSummaryBlocks,
@@ -48,8 +49,13 @@ export type MChannelIdActor =
   & Use<'Actor', MActorAccountChannelId>
 
 export type MChannelUserId =
-  & Pick<MChannel, 'accountId'>
-  & Use<'Account', MAccountUserId>
+  & Pick<MChannel, 'id' | 'accountId'>
+  & Use<'Account', MAccountId & MAccountUserId>
+
+export type MChannelAccountId =
+  & Pick<MChannel, 'id' | 'accountId'>
+  & Use<'Actor', MActorId>
+  & Use<'Account', MAccountIdActorId>
 
 export type MChannelAccountIdUrl =
   & Pick<MChannel, 'id' | 'accountId'>
@@ -127,7 +133,7 @@ export type MChannelVideos =
 
 export type MChannelSummary =
   & FunctionProperties<MChannel>
-  & Pick<MChannel, 'id' | 'name' | 'description' | 'actorId'>
+  & Pick<MChannel, 'id' | 'name' | 'description'>
   & Use<'Actor', MActorSummary>
 
 export type MChannelSummaryAccount =
@@ -154,7 +160,7 @@ export type MChannelAccountSummaryFormattable =
 
 export type MChannelFormattable =
   & FunctionProperties<MChannel>
-  & Pick<MChannel, 'id' | 'name' | 'description' | 'createdAt' | 'updatedAt' | 'support'>
+  & Pick<MChannel, 'id' | 'name' | 'description' | 'createdAt' | 'updatedAt' | 'support' | 'accountId'>
   & Use<'Actor', MActorFormattable>
   & PickWithOpt<VideoChannelModel, 'Account', MAccountFormattable>
 

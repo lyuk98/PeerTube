@@ -2,6 +2,9 @@ import { peertubeTranslate } from '@peertube/peertube-core-utils'
 import {
   HTMLServerConfig,
   LiveVideo,
+  PlayerMode,
+  PlayerTheme,
+  PlayerVideoSettings,
   Storyboard,
   Video,
   VideoCaption,
@@ -24,7 +27,7 @@ import {
   UserLocalStorageKeys,
   videoRequiresUserAuth
 } from '../../../root-helpers'
-import { HLSOptions, PeerTubePlayerConstructorOptions, PeerTubePlayerLoadOptions, PlayerMode, VideoJSCaption } from '../../player'
+import { HLSOptions, PeerTubePlayerConstructorOptions, PeerTubePlayerLoadOptions, VideoJSCaption } from '../../player'
 import { PeerTubePlugin } from './peertube-plugin'
 import { PlayerHTML } from './player-html'
 import { PlaylistTracker } from './playlist-tracker'
@@ -52,6 +55,7 @@ export class PlayerOptionsBuilder {
   private p2pEnabled: boolean
   private bigPlayBackgroundColor: string
   private foregroundColor: string
+  private playerTheme: PlayerTheme
 
   private waitPasswordFromEmbedAPI = false
 
@@ -141,6 +145,8 @@ export class PlayerOptionsBuilder {
 
       this.bigPlayBackgroundColor = getParamString(params, 'bigPlayBackgroundColor')
       this.foregroundColor = getParamString(params, 'foregroundColor')
+
+      this.playerTheme = getParamString(params, 'playerTheme') as PlayerTheme
     } catch (err) {
       logger.error('Cannot get params from URL.', err)
     }
@@ -164,6 +170,7 @@ export class PlayerOptionsBuilder {
         if (modeParam === 'p2p-media-loader') this.mode = 'p2p-media-loader'
         else this.mode = 'web-video'
       } else {
+        // eslint-disable-next-line no-lonely-if
         if (Array.isArray(video.streamingPlaylists) && video.streamingPlaylists.length !== 0) this.mode = 'p2p-media-loader'
         else this.mode = 'web-video'
       }
@@ -228,6 +235,8 @@ export class PlayerOptionsBuilder {
 
     chaptersResponse: Response
 
+    playerSettingsResponse: Response
+
     live?: LiveVideo
 
     alreadyPlayed: boolean
@@ -261,13 +270,15 @@ export class PlayerOptionsBuilder {
       live,
       storyboardsResponse,
       chaptersResponse,
-      config
+      config,
+      playerSettingsResponse
     } = options
 
-    const [ videoCaptions, storyboard, chapters ] = await Promise.all([
+    const [ videoCaptions, storyboard, chapters, playerSettings ] = await Promise.all([
       this.buildCaptions(captionsResponse, translations),
       this.buildStoryboard(storyboardsResponse),
-      this.buildChapters(chaptersResponse)
+      this.buildChapters(chaptersResponse),
+      playerSettingsResponse.json() as Promise<PlayerVideoSettings>
     ])
 
     const nsfwWarn = isVideoNSFWWarnedForUser(video, config, null) || isVideoNSFWHiddenForUser(video, config, null)
@@ -275,6 +286,7 @@ export class PlayerOptionsBuilder {
 
     return {
       mode: this.mode,
+      theme: this.playerTheme || playerSettings.theme as PlayerTheme,
 
       autoplay: !nsfwWarn && (forceAutoplay || alreadyPlayed || this.autoplay),
       forceAutoplay,

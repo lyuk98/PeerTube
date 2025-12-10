@@ -31,7 +31,6 @@ export interface VideoObject {
   permanentLive: boolean
   latencyMode: LiveVideoLatencyModeType
 
-  commentsEnabled?: boolean
   commentsPolicy: VideoCommentPolicyType
   canReply: 'as:Public' | 'https://www.w3.org/ns/activitystreams#Public'
 
@@ -43,6 +42,10 @@ export interface VideoObject {
   originallyPublishedAt: string
   updated: string
   uploadDate: string
+
+  schedules?: {
+    startDate: Date
+  }[]
 
   mediaType: 'text/markdown'
   content: string
@@ -60,6 +63,7 @@ export interface VideoObject {
   shares: string
   comments: string
   hasParts: string | VideoChapterObject[]
+  playerSettings: string
 
   attributedTo: ActivityPubAttributedTo[]
 

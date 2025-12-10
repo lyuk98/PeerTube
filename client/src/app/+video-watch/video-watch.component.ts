@@ -1,4 +1,4 @@
-import { NgClass, NgIf, NgTemplateOutlet, PlatformLocation } from '@angular/common'
+import { CommonModule, PlatformLocation } from '@angular/common'
 import { Component, ElementRef, inject, LOCALE_ID, NgZone, OnDestroy, OnInit, viewChild } from '@angular/core'
 import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router'
 import {
@@ -29,12 +29,16 @@ import { SubscribeButtonComponent } from '@app/shared/shared-user-subscription/s
 import { LiveVideoService } from '@app/shared/shared-video-live/live-video.service'
 import { VideoPlaylist } from '@app/shared/shared-video-playlist/video-playlist.model'
 import { VideoPlaylistService } from '@app/shared/shared-video-playlist/video-playlist.service'
-import { getVideoWatchRSSFeeds, timeToInt } from '@peertube/peertube-core-utils'
+import { PlayerSettingsService } from '@app/shared/shared-video/player-settings.service'
+import { getVideoRSSFeeds, timeToInt } from '@peertube/peertube-core-utils'
 import {
   HTMLServerConfig,
   HttpStatusCode,
   LiveVideo,
   PeerTubeProblemDocument,
+  PlayerMode,
+  PlayerTheme,
+  PlayerVideoSettings,
   ServerErrorCode,
   Storyboard,
   VideoCaption,
@@ -51,14 +55,15 @@ import {
   PeerTubePlayer,
   PeerTubePlayerConstructorOptions,
   PeerTubePlayerLoadOptions,
-  PlayerMode,
-  videojs
+  videojs,
+  VideojsPlayer
 } from '@peertube/player'
 import { logger } from '@root-helpers/logger'
 import { isP2PEnabled, videoRequiresFileToken, videoRequiresUserAuth } from '@root-helpers/video'
 import debug from 'debug'
 import { forkJoin, map, Observable, of, Subscription, switchMap } from 'rxjs'
 import { environment } from '../../environments/environment'
+import { AccountOnChannelAvatarComponent } from '../shared/shared-actor-image/account-on-channel-avatar.component'
 import { DateToggleComponent } from '../shared/shared-main/date/date-toggle.component'
 import { PluginPlaceholderComponent } from '../shared/shared-main/plugins/plugin-placeholder.component'
 import { VideoViewsCounterComponent } from '../shared/shared-video/video-views-counter.component'
@@ -68,7 +73,6 @@ import { VideoCommentsComponent } from './shared/comment/video-comments.componen
 import { PrivacyConcernsComponent } from './shared/information/privacy-concerns.component'
 import { VideoAlertComponent } from './shared/information/video-alert.component'
 import { VideoAttributesComponent } from './shared/metadata/video-attributes.component'
-import { VideoAvatarChannelComponent } from './shared/metadata/video-avatar-channel.component'
 import { VideoDescriptionComponent } from './shared/metadata/video-description.component'
 import { VideoTranscriptionComponent } from './shared/player-widgets/video-transcription.component'
 import { VideoWatchPlaylistComponent } from './shared/player-widgets/video-watch-playlist.component'
@@ -78,6 +82,7 @@ const debugLogger = debug('peertube:watch:VideoWatchComponent')
 
 type URLOptions = {
   playerMode: PlayerMode
+  playerTheme?: PlayerTheme
 
   startTime: number | string
   stopTime: number | string
@@ -100,16 +105,14 @@ type URLOptions = {
   templateUrl: './video-watch.component.html',
   styleUrls: [ './video-watch.component.scss' ],
   imports: [
-    NgClass,
-    NgIf,
+    CommonModule,
     VideoWatchPlaylistComponent,
     PluginPlaceholderComponent,
     VideoAlertComponent,
     DateToggleComponent,
     VideoViewsCounterComponent,
-    NgTemplateOutlet,
     ActionButtonsComponent,
-    VideoAvatarChannelComponent,
+    AccountOnChannelAvatarComponent,
     RouterLink,
     SubscribeButtonComponent,
     VideoDescriptionComponent,
@@ -137,6 +140,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
   private zone = inject(NgZone)
   private videoCaptionService = inject(VideoCaptionService)
   private videoChapterService = inject(VideoChapterService)
+  private playerSettingsService = inject(PlayerSettingsService)
   private hotkeysService = inject(HotkeysService)
   private hooks = inject(HooksService)
   private pluginService = inject(PluginService)
@@ -160,6 +164,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
   liveVideo: LiveVideo
   videoPassword: string
   storyboards: Storyboard[] = []
+  playerSettings: PlayerVideoSettings
 
   playlistPosition: number
   playlist: VideoPlaylist = null
@@ -288,6 +293,14 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
     return genericChannelDisplayName.includes(this.video.channel.displayName)
   }
 
+  getAccountOrChannelRouterLink () {
+    if (!this.isChannelDisplayNameGeneric()) {
+      return `/c/${this.video.byVideoChannel}`
+    }
+
+    return `/a/${this.video.byAccount}`
+  }
+
   displayOtherVideosAsRow () {
     // Use the same value as in the SASS file
     return this.screenService.getWindowInnerWidth() <= 1100
@@ -371,9 +384,10 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
       this.videoCaptionService.listCaptions(videoId, videoPassword),
       this.videoChapterService.getChapters({ videoId, videoPassword }),
       this.videoService.getStoryboards(videoId, videoPassword),
+      this.playerSettingsService.getVideoSettings({ videoId, videoPassword, raw: false }),
       this.userService.getAnonymousOrLoggedUser()
     ]).subscribe({
-      next: ([ { video, live, videoFileToken }, captionsResult, chaptersResult, storyboards, loggedInOrAnonymousUser ]) => {
+      next: ([ { video, live, videoFileToken }, captionsResult, chaptersResult, storyboards, playerSettings, loggedInOrAnonymousUser ]) => {
         this.onVideoFetched({
           video,
           live,
@@ -382,6 +396,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
           storyboards,
           videoFileToken,
           videoPassword,
+          playerSettings,
           loggedInOrAnonymousUser,
           forceAutoplay
         }).catch(err => {
@@ -488,6 +503,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
     storyboards: Storyboard[]
     videoFileToken: string
     videoPassword: string
+    playerSettings: PlayerVideoSettings
 
     loggedInOrAnonymousUser: User
     forceAutoplay: boolean
@@ -500,6 +516,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
       storyboards,
       videoFileToken,
       videoPassword,
+      playerSettings,
       loggedInOrAnonymousUser,
       forceAutoplay
     } = options
@@ -513,6 +530,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
     this.videoFileToken = videoFileToken
     this.videoPassword = videoPassword
     this.storyboards = storyboards
+    this.playerSettings = playerSettings
 
     // Re init attributes
     this.remoteServerDown = false
@@ -576,6 +594,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
       liveVideo: this.liveVideo,
       videoFileToken: this.videoFileToken,
       videoPassword: this.videoPassword,
+      playerSettings: this.playerSettings,
       urlOptions: this.getUrlOptions(),
       loggedInOrAnonymousUser,
       forceAutoplay,
@@ -724,6 +743,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
     videoCaptions: VideoCaption[]
     videoChapters: VideoChapter[]
     storyboards: Storyboard[]
+    playerSettings: PlayerVideoSettings
 
     videoFileToken: string
     videoPassword: string
@@ -744,7 +764,8 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
       videoPassword,
       urlOptions,
       loggedInOrAnonymousUser,
-      forceAutoplay
+      forceAutoplay,
+      playerSettings
     } = options
 
     let mode: PlayerMode
@@ -753,6 +774,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
       if (urlOptions.playerMode === 'p2p-media-loader') mode = 'p2p-media-loader'
       else mode = 'web-video'
     } else {
+      // eslint-disable-next-line no-lonely-if
       if (video.hasHlsPlaylist()) mode = 'p2p-media-loader'
       else mode = 'web-video'
     }
@@ -813,6 +835,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
 
     return {
       mode,
+      theme: urlOptions.playerTheme || playerSettings.theme as PlayerTheme,
 
       autoplay: this.isAutoplay(video, loggedInOrAnonymousUser),
       forceAutoplay,
@@ -831,9 +854,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
       isLive: video.isLive,
       liveOptions,
 
-      videoViewUrl: video.privacy.id !== VideoPrivacy.PRIVATE
-        ? this.videoService.getVideoViewUrl(video.uuid)
-        : null,
+      videoViewUrl: this.videoService.getVideoViewUrl(video.uuid),
 
       videoFileToken: () => videoFileToken,
       requiresUserAuth: videoRequiresUserAuth(video, videoPassword),
@@ -885,7 +906,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
           return loggedInOrAnonymousUser?.autoPlayNextVideo
         },
 
-        isSuspended: (player: videojs.Player) => {
+        isSuspended: (player: VideojsPlayer) => {
           return !isXPercentInViewport(player.el() as HTMLElement, 80)
         },
 
@@ -1013,7 +1034,14 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
     this.metaService.setDescription(video.description)
 
     this.metaService.setRSSFeeds(
-      getVideoWatchRSSFeeds(getOriginUrl(), this.serverConfig.instance.name, { ...video, privacy: video.privacy.id })
+      getVideoRSSFeeds({
+        url: getOriginUrl(),
+        video: { ...video, privacy: video.privacy.id },
+        titles: {
+          instanceVideosFeed: `${this.serverConfig.instance.name} - Videos feed`,
+          videoCommentsFeed: `${video.name} - Comments feed`
+        }
+      })
     )
   }
 
@@ -1031,6 +1059,7 @@ export class VideoWatchComponent implements OnInit, OnDestroy {
       subtitle: queryParams.subtitle,
 
       playerMode: queryParams.mode,
+      playerTheme: queryParams.playerTheme,
       playbackRate: queryParams.playbackRate,
 
       controlBar: toBoolean(queryParams.controlBar),

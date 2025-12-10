@@ -132,7 +132,7 @@ elif [ "$1" = "api-5" ]; then
 
     MOCHA_PARALLEL=true runJSTest "$1" $((2*$speedFactor)) $transcodingFiles $runnersFiles
 elif [ "$1" = "external-plugins" ]; then
-    npm run install-dependencies:transcription --workspace=@peertube/tests
+    pnpm run --filter=@peertube/tests install-dependencies:transcription
 
     npm run build:server
     npm run build:tests
@@ -150,7 +150,7 @@ elif [ "$1" = "lint" ]; then
 
     ( cd client && npm run lint )
 elif [ "$1" = "transcription" ]; then
-    npm run install-dependencies:transcription --workspace=@peertube/tests
+    pnpm run --filter=@peertube/tests install-dependencies:transcription
 
     npm run build:server
     npm run build:tests

@@ -1,5 +1,12 @@
 import { forceNumber } from '@peertube/peertube-core-utils'
-import { VideoInclude, VideoIncludeType, VideoPrivacy, VideoPrivacyType, VideoState } from '@peertube/peertube-models'
+import {
+  VideoChannelCollaboratorState,
+  VideoInclude,
+  VideoIncludeType,
+  VideoPrivacy,
+  VideoPrivacyType,
+  VideoState
+} from '@peertube/peertube-models'
 import { exists } from '@server/helpers/custom-validators/misc.js'
 import { WEBSERVER } from '@server/initializers/constants.js'
 import { buildSortDirectionAndField } from '@server/models/shared/index.js'
@@ -37,6 +44,7 @@ export type BuildVideosListQueryOptions = {
   isLive?: boolean
   isLocal?: boolean
   include?: VideoIncludeType
+  includeScheduledLive?: boolean
 
   categoryOneOf?: number[]
   licenceOneOf?: number[]
@@ -57,6 +65,7 @@ export type BuildVideosListQueryOptions = {
   hasWebVideoFiles?: boolean
 
   accountId?: number
+  includeCollaborations?: boolean
 
   videoChannelId?: number
   channelNameOneOf?: string[]
@@ -109,6 +118,8 @@ export class VideosIdListQueryBuilder extends AbstractRunQuery {
   private limit = ''
   private offset = ''
 
+  private builtChannelJoin = false
+
   constructor (protected readonly sequelize: Sequelize) {
     super(sequelize)
   }
@@ -145,7 +156,7 @@ export class VideosIdListQueryBuilder extends AbstractRunQuery {
     this.joins = this.joins.concat([
       'INNER JOIN "videoChannel" ON "videoChannel"."id" = "video"."channelId"',
       'INNER JOIN "account" ON "account"."id" = "videoChannel"."accountId"',
-      'INNER JOIN "actor" "accountActor" ON "account"."actorId" = "accountActor"."id"'
+      'INNER JOIN "actor" "accountActor" ON "account"."id" = "accountActor"."accountId"'
     ])
 
     if (!(options.include & VideoInclude.BLACKLISTED)) {
@@ -158,7 +169,9 @@ export class VideosIdListQueryBuilder extends AbstractRunQuery {
 
     // Only list published videos
     if (!(options.include & VideoInclude.NOT_PUBLISHED_STATE)) {
-      this.whereStateAvailable()
+      if (options.includeScheduledLive) this.joinLiveSchedules()
+
+      this.whereStateAvailable({ includeScheduledLive: options.includeScheduledLive ?? false })
     }
 
     if (options.videoPlaylistId) {
@@ -174,19 +187,19 @@ export class VideosIdListQueryBuilder extends AbstractRunQuery {
     }
 
     if (options.accountId) {
-      this.whereAccountId(options.accountId)
+      this.whereAccountId({ accountId: options.accountId, includeCollaborations: options.includeCollaborations })
     }
 
     if (options.videoChannelId) {
       this.whereChannelId(options.videoChannelId)
     }
 
-    if (options.channelNameOneOf) {
+    if (options.channelNameOneOf && options.channelNameOneOf.length !== 0) {
       this.whereChannelOneOf(options.channelNameOneOf)
     }
 
     if (options.displayOnlyForFollower) {
-      this.whereFollowerActorId(options.displayOnlyForFollower)
+      this.whereFollowerActorId({ ...options.displayOnlyForFollower, isCount: options.isCount === true })
     }
 
     if (options.hasFiles === true) {
@@ -349,11 +362,33 @@ export class VideosIdListQueryBuilder extends AbstractRunQuery {
     this.replacements.videoPlaylistId = playlistId
   }
 
-  private whereStateAvailable () {
-    this.and.push(
-      `("video"."state" = ${VideoState.PUBLISHED} OR ` +
-        `("video"."state" = ${VideoState.TO_TRANSCODE} AND "video"."waitTranscoding" IS false))`
+  private joinLiveSchedules () {
+    this.joins.push(
+      'LEFT JOIN "videoLive" ON "video"."id" = "videoLive"."videoId"',
+      'LEFT JOIN "videoLiveSchedule" ON "videoLiveSchedule"."liveVideoId" = "videoLive"."id"'
     )
+  }
+
+  private joinChannel () {
+    if (this.builtChannelJoin) return
+    this.builtChannelJoin = true
+
+    this.joins.push('INNER JOIN "actor" "channelActor" ON "videoChannel"."id" = "channelActor"."videoChannelId"')
+  }
+
+  private whereStateAvailable (options: {
+    includeScheduledLive: boolean
+  }) {
+    const or: string[] = []
+
+    or.push(`"video"."state" = ${VideoState.PUBLISHED}`)
+    or.push(`("video"."state" = ${VideoState.TO_TRANSCODE} AND "video"."waitTranscoding" IS false)`)
+
+    if (options.includeScheduledLive) {
+      or.push(`("video"."state" = ${VideoState.WAITING_FOR_LIVE} AND "videoLiveSchedule"."startAt" > NOW())`)
+    }
+
+    this.and.push(`(${or.join(' OR ')})`)
   }
 
   private wherePrivacyAvailable (user?: MUserAccountId) {
@@ -387,9 +422,27 @@ export class VideosIdListQueryBuilder extends AbstractRunQuery {
     this.replacements.host = host
   }
 
-  private whereAccountId (accountId: number) {
-    this.and.push('"account"."id" = :accountId')
-    this.replacements.accountId = accountId
+  private whereAccountId (options: {
+    accountId: number
+    includeCollaborations: boolean
+  }) {
+    if (options.includeCollaborations !== true) {
+      this.and.push('"account"."id" = :accountId')
+      this.replacements.accountId = options.accountId
+      return
+    }
+
+    this.joins.push(
+      'LEFT JOIN "videoChannelCollaborator" ON "videoChannelCollaborator"."channelId" = "videoChannel".id ' +
+        'AND "videoChannelCollaborator"."state" = :channelCollaboratorState ' +
+        // Ensure we join with max 1 collaborator to not duplicate rows
+        'AND "videoChannelCollaborator"."accountId" = :accountId'
+    )
+
+    this.and.push('("account"."id" = :accountId OR "videoChannelCollaborator"."accountId" = :accountId)')
+
+    this.replacements.accountId = options.accountId
+    this.replacements.channelCollaboratorState = VideoChannelCollaboratorState.ACCEPTED
   }
 
   private whereChannelId (channelId: number) {
@@ -398,32 +451,62 @@ export class VideosIdListQueryBuilder extends AbstractRunQuery {
   }
 
   private whereChannelOneOf (channelOneOf: string[]) {
-    this.joins.push('INNER JOIN "actor" "channelActor" ON "videoChannel"."actorId" = "channelActor"."id"')
+    this.joinChannel()
+
     this.and.push('"channelActor"."preferredUsername" IN (:channelOneOf)')
     this.replacements.channelOneOf = channelOneOf
   }
 
-  private whereFollowerActorId (options: { actorId: number, orLocalVideos: boolean }) {
-    let query = '(' +
-      '  EXISTS (' + // Videos shared by actors we follow
-      '    SELECT 1 FROM "videoShare" ' +
-      '    INNER JOIN "actorFollow" "actorFollowShare" ON "actorFollowShare"."targetActorId" = "videoShare"."actorId" ' +
-      '    AND "actorFollowShare"."actorId" = :followerActorId AND "actorFollowShare"."state" = \'accepted\' ' +
-      '    WHERE "videoShare"."videoId" = "video"."id"' +
-      '  )' +
-      '  OR' +
-      '  EXISTS (' + // Videos published by channels or accounts we follow
-      '    SELECT 1 from "actorFollow" ' +
-      '    WHERE ("actorFollow"."targetActorId" = "account"."actorId" OR "actorFollow"."targetActorId" = "videoChannel"."actorId") ' +
-      '    AND "actorFollow"."actorId" = :followerActorId ' +
-      '    AND "actorFollow"."state" = \'accepted\'' +
-      '  )'
+  private whereFollowerActorId (options: { actorId: number, orLocalVideos: boolean, isCount: boolean }) {
+    this.joinChannel()
 
-    if (options.orLocalVideos) {
-      query += '  OR "video"."remote" IS FALSE'
+    let query = ''
+
+    // IN is faster than EXISTS if with COUNT
+    if (options.isCount) {
+      // Don't use CTE on purpose, that seems to be slower in this case
+      const targetActorIdQuery =
+        `SELECT "targetActorId" FROM "actorFollow" WHERE "actorFollow"."actorId" = :followerActorId AND "actorFollow"."state" = 'accepted'`
+
+      query = '(' +
+        `"accountActor"."id" IN (${targetActorIdQuery})` +
+        `OR "channelActor"."id" IN (${targetActorIdQuery})` +
+        `OR "video"."id" IN (` +
+        `  SELECT "videoId" FROM "videoShare" INNER JOIN "actorFollow" ON "actorFollow"."targetActorId" = "videoShare"."actorId" ` +
+        `  WHERE "actorFollow"."actorId" = :followerActorId AND "actorFollow"."state" = 'accepted'` +
+        `) `
+
+      if (options.orLocalVideos) {
+        query += 'OR "video"."remote" IS FALSE'
+      }
+
+      query += ')'
+    } else {
+      query = '(' +
+        '  EXISTS (' + // Videos shared by actors (instances, channels) we follow
+        '    SELECT 1 FROM "videoShare" ' +
+        '    INNER JOIN "actorFollow" "actorFollowShare" ON "actorFollowShare"."targetActorId" = "videoShare"."actorId" ' +
+        '    AND "actorFollowShare"."actorId" = :followerActorId AND "actorFollowShare"."state" = \'accepted\' ' +
+        '    WHERE "videoShare"."videoId" = "video"."id"' +
+        '    UNION ALL ' +
+        '    SELECT 1 from "actorFollow" ' + // Videos published by accounts we follow
+        '    WHERE "actorFollow"."targetActorId" = "accountActor"."id" ' +
+        '    AND "actorFollow"."actorId" = :followerActorId ' +
+        '    AND "actorFollow"."state" = \'accepted\'' +
+        '    UNION ALL ' +
+        '    SELECT 1 from "actorFollow" ' + // Videos published by channels we follow
+        '    WHERE "actorFollow"."targetActorId" = "channelActor"."id" ' +
+        '    AND "actorFollow"."actorId" = :followerActorId ' +
+        '    AND "actorFollow"."state" = \'accepted\'' +
+        '    LIMIT 1' +
+        '  )'
+
+      if (options.orLocalVideos) {
+        query += '  OR "video"."remote" IS FALSE'
+      }
+
+      query += ')'
     }
-
-    query += ')'
 
     this.and.push(query)
     this.replacements.followerActorId = options.actorId

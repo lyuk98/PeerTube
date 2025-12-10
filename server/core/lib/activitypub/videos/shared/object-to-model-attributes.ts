@@ -1,6 +1,5 @@
 import { arrayify, maxBy, minBy } from '@peertube/peertube-core-utils'
 import {
-  ActivityCaptionUrlObject,
   ActivityHashTagObject,
   ActivityMagnetUrlObject,
   ActivityPlaylistSegmentHashesObject,
@@ -31,7 +30,15 @@ import { VideoCaptionModel } from '@server/models/video/video-caption.js'
 import { VideoFileModel } from '@server/models/video/video-file.js'
 import { VideoStreamingPlaylistModel } from '@server/models/video/video-streaming-playlist.js'
 import { FilteredModelAttributes } from '@server/types/index.js'
-import { isStreamingPlaylist, MChannelId, MStreamingPlaylistVideo, MVideo, MVideoFile, MVideoId } from '@server/types/models/index.js'
+import {
+  isStreamingPlaylist,
+  MChannelId,
+  MStreamingPlaylistVideo,
+  MVideo,
+  MVideoFile,
+  MVideoId,
+  MVideoLive
+} from '@server/types/models/index.js'
 import { decode as magnetUriDecode } from 'magnet-uri'
 import { basename, extname } from 'path'
 import { getDurationFromActivityStream } from '../../activity.js'
@@ -206,12 +213,19 @@ export function getLiveAttributesFromObject (video: MVideoId, videoObject: Video
     videoId: video.id
   }
 }
+export function getLiveSchedulesAttributesFromObject (live: MVideoLive, videoObject: VideoObject) {
+  const schedules = videoObject.schedules || []
+
+  return schedules.map(s => ({
+    liveVideoId: live.id,
+    startAt: s.startDate
+  }))
+}
 
 export function getCaptionAttributesFromObject (video: MVideoId, videoObject: VideoObject) {
   return videoObject.subtitleLanguage.map(c => {
     // This field is sanitized in validators
-    // TODO: Remove as in v8
-    const url = c.url as (ActivityCaptionUrlObject | ActivityPlaylistUrlObject)[]
+    const url = c.url
 
     const filename = VideoCaptionModel.generateCaptionName(c.identifier)
 
@@ -319,23 +333,23 @@ function isAPVideoUrlObject (url: any): url is ActivityVideoUrlObject {
 }
 
 function isAPStreamingPlaylistUrlObject (url: any): url is ActivityPlaylistUrlObject {
-  return url && url.mediaType === 'application/x-mpegURL'
+  return url?.mediaType === 'application/x-mpegURL'
 }
 
 function isAPPlaylistSegmentHashesUrlObject (tag: any): tag is ActivityPlaylistSegmentHashesObject {
-  return tag && tag.name === 'sha256' && tag.type === 'Link' && tag.mediaType === 'application/json'
+  return tag?.name === 'sha256' && tag.type === 'Link' && tag.mediaType === 'application/json'
 }
 
 function isAPMagnetUrlObject (url: any): url is ActivityMagnetUrlObject {
-  return url && url.mediaType === 'application/x-bittorrent;x-scheme-handler/magnet'
+  return url?.mediaType === 'application/x-bittorrent;x-scheme-handler/magnet'
 }
 
 function isAPHashTagObject (tag: any): tag is ActivityHashTagObject {
-  return tag && tag.type === 'Hashtag'
+  return tag?.type === 'Hashtag'
 }
 
 function isAPSensitiveTagObject (tag: any): tag is ActivitySensitiveTagObject {
-  return tag && tag.type === 'SensitiveTag'
+  return tag?.type === 'SensitiveTag'
 }
 
 function getTorrentRelatedInfo (options: {

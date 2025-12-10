@@ -7,7 +7,7 @@ import {
   VideoPlaylistElement,
   VideoState
 } from '@peertube/peertube-models'
-import type { PeerTubePlayer } from '@peertube/player'
+import type { PeerTubePlayer, VideojsPlayer } from '@peertube/player'
 import { TranslationsManager } from '@root-helpers/translations-manager'
 import { PeerTubeServerError } from 'src/types'
 import type videojs from 'video.js'
@@ -29,7 +29,7 @@ import {
 import { PlayerHTML } from './shared/player-html'
 
 export class PeerTubeEmbed {
-  player: videojs.Player
+  player: VideojsPlayer
   api: PeerTubeEmbedApi = null
 
   config: HTMLServerConfig
@@ -62,7 +62,7 @@ export class PeerTubeEmbed {
   constructor (videoWrapperId: string) {
     logger.registerServerSending(getBackendUrl())
 
-    this.http = new AuthHTTP(getBackendUrl())
+    this.http = new AuthHTTP(getBackendUrl(), navigator.language)
 
     this.videoFetcher = new VideoFetcher(this.http)
     this.playlistFetcher = new PlaylistFetcher(this.http)
@@ -134,7 +134,7 @@ export class PeerTubeEmbed {
       const playlistPositionParam = getParamString(params, 'playlistPosition')
 
       const position = playlistPositionParam
-        ? parseInt(playlistPositionParam + '', 10)
+        ? parseInt(playlistPositionParam, 10)
         : 1
 
       this.playlistTracker.setPosition(position)
@@ -220,10 +220,18 @@ export class PeerTubeEmbed {
         videoResponse,
         captionsPromise,
         chaptersPromise,
-        storyboardsPromise
+        storyboardsPromise,
+        playerSettingsPromise
       } = await this.videoFetcher.loadVideo({ videoId: uuid, videoPassword: this.videoPassword })
 
-      return this.buildVideoPlayer({ videoResponse, captionsPromise, chaptersPromise, storyboardsPromise, forceAutoplay })
+      return this.buildVideoPlayer({
+        videoResponse,
+        captionsPromise,
+        chaptersPromise,
+        storyboardsPromise,
+        playerSettingsPromise,
+        forceAutoplay
+      })
     } catch (err) {
       if (await this.handlePasswordError(err)) this.loadVideoAndBuildPlayer({ ...options })
       else this.playerHTML.displayError(err.message, await this.translationsPromise)
@@ -235,9 +243,10 @@ export class PeerTubeEmbed {
     storyboardsPromise: Promise<Response>
     captionsPromise: Promise<Response>
     chaptersPromise: Promise<Response>
+    playerSettingsPromise: Promise<Response>
     forceAutoplay: boolean
   }) {
-    const { videoResponse, captionsPromise, chaptersPromise, storyboardsPromise, forceAutoplay } = options
+    const { videoResponse, captionsPromise, chaptersPromise, storyboardsPromise, playerSettingsPromise, forceAutoplay } = options
 
     const videoInfoPromise = videoResponse.json()
       .then(async (videoInfo: VideoDetails) => {
@@ -259,13 +268,15 @@ export class PeerTubeEmbed {
       translations,
       captionsResponse,
       chaptersResponse,
-      storyboardsResponse
+      storyboardsResponse,
+      playerSettingsResponse
     ] = await Promise.all([
       videoInfoPromise,
       this.translationsPromise,
       captionsPromise,
       chaptersPromise,
       storyboardsPromise,
+      playerSettingsPromise,
       this.buildPlayerIfNeeded()
     ])
 
@@ -283,6 +294,7 @@ export class PeerTubeEmbed {
       video,
       captionsResponse,
       chaptersResponse,
+      playerSettingsResponse,
 
       config: this.config,
       translations,
@@ -349,11 +361,11 @@ export class PeerTubeEmbed {
     const body = document.getElementById('custom-css')
 
     if (this.playerOptionsBuilder.hasBigPlayBackgroundColor()) {
-      body.style.setProperty('--embed-big-play-background-color', this.playerOptionsBuilder.getBigPlayBackgroundColor())
+      body.style.setProperty('--pt-player-big-play-background-color', this.playerOptionsBuilder.getBigPlayBackgroundColor())
     }
 
     if (this.playerOptionsBuilder.hasForegroundColor()) {
-      body.style.setProperty('--embed-foreground-color', this.playerOptionsBuilder.getForegroundColor())
+      body.style.setProperty('--pt-player-fg', this.playerOptionsBuilder.getForegroundColor())
     }
   }
 

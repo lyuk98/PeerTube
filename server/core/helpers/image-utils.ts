@@ -52,6 +52,21 @@ export async function getImageSize (path: string) {
   }
 }
 
+// Build new size if height or width is missing, to keep the aspect ratio
+export async function buildImageSize (imagePath: string, sizeArg: { width?: number, height?: number }) {
+  if (sizeArg.width && sizeArg.height) {
+    return sizeArg as { width: number, height: number }
+  }
+
+  const size = await getImageSize(imagePath)
+  const ratio = size.width / size.height
+
+  return {
+    width: sizeArg.width ?? Math.round(sizeArg.height * ratio),
+    height: sizeArg.height ?? Math.round(sizeArg.width / ratio)
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Private
 // ---------------------------------------------------------------------------
@@ -95,7 +110,7 @@ async function jimpProcessor (options: {
   }
 }
 
-async function autoResize (options: {
+function autoResize (options: {
   sourceImage: Jimp
   newSize: { width: number, height: number }
   destination: string

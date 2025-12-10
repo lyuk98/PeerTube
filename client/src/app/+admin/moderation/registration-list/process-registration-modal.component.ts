@@ -1,12 +1,11 @@
-import { NgClass, NgIf } from '@angular/common'
+import { CommonModule } from '@angular/common'
 import { Component, OnInit, inject, output, viewChild } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { Notifier, ServerService } from '@app/core'
 import { FormReactive } from '@app/shared/shared-forms/form-reactive'
 import { FormReactiveService } from '@app/shared/shared-forms/form-reactive.service'
 import { AlertComponent } from '@app/shared/shared-main/common/alert.component'
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
-import { NgbModalRef } from '@ng-bootstrap/ng-bootstrap/modal/modal-ref'
+import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap'
 import { UserRegistration } from '@peertube/peertube-models'
 import { PeertubeCheckboxComponent } from '../../../shared/shared-forms/peertube-checkbox.component'
 import { GlobalIconComponent } from '../../../shared/shared-icons/global-icon.component'
@@ -16,7 +15,7 @@ import { REGISTRATION_MODERATION_RESPONSE_VALIDATOR } from './process-registrati
 @Component({
   selector: 'my-process-registration-modal',
   templateUrl: './process-registration-modal.component.html',
-  imports: [ NgIf, GlobalIconComponent, FormsModule, ReactiveFormsModule, NgClass, PeertubeCheckboxComponent, AlertComponent ]
+  imports: [ CommonModule, GlobalIconComponent, FormsModule, ReactiveFormsModule, PeertubeCheckboxComponent, AlertComponent ]
 })
 export class ProcessRegistrationModalComponent extends FormReactive implements OnInit {
   protected formReactiveService = inject(FormReactiveService)
@@ -52,6 +51,12 @@ export class ProcessRegistrationModalComponent extends FormReactive implements O
   openModal (registration: UserRegistration, mode: 'accept' | 'reject') {
     this.processMode = mode
     this.registration = registration
+
+    if (this.registration.emailVerified !== true || !this.isEmailEnabled()) {
+      this.form.get('preventEmailDelivery').disable()
+    } else {
+      this.form.get('preventEmailDelivery').enable()
+    }
 
     this.form.patchValue({
       preventEmailDelivery: !this.isEmailEnabled() || registration.emailVerified !== true

@@ -1,10 +1,10 @@
-import { NgIf } from '@angular/common'
+
 import { AfterViewInit, Component, OnInit, inject, input, output } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { ActivatedRoute, RouterLink } from '@angular/router'
 import { VideoEdit } from '@app/+videos-publish-manage/shared-manage/common/video-edit.model'
 import { VideoManageController } from '@app/+videos-publish-manage/shared-manage/video-manage-controller.service'
-import { CanComponentDeactivate, HooksService, Notifier, ServerService } from '@app/core'
+import { AuthService, CanComponentDeactivate, HooksService, Notifier, ServerService } from '@app/core'
 import { AlertComponent } from '@app/shared/shared-main/common/alert.component'
 import { VideoCaptionService } from '@app/shared/shared-main/video-caption/video-caption.service'
 import { VideoChapterService } from '@app/shared/shared-main/video/video-chapter.service'
@@ -20,6 +20,7 @@ import { SelectChannelComponent } from '../../../shared/shared-forms/select/sele
 import { GlobalIconComponent } from '../../../shared/shared-icons/global-icon.component'
 import { HelpComponent } from '../../../shared/shared-main/buttons/help.component'
 import { VideoManageContainerComponent } from '../../shared-manage/video-manage-container.component'
+import { PlayerSettingsService } from '@app/shared/shared-video/player-settings.service'
 
 const debugLogger = debug('peertube:video-publish')
 
@@ -28,7 +29,6 @@ const debugLogger = debug('peertube:video-publish')
   templateUrl: './video-import-url.component.html',
   styleUrls: [ '../shared/common-publish.scss' ],
   imports: [
-    NgIf,
     GlobalIconComponent,
     HelpComponent,
     FormsModule,
@@ -37,9 +37,10 @@ const debugLogger = debug('peertube:video-publish')
     ReactiveFormsModule,
     AlertComponent,
     VideoManageContainerComponent
-  ]
+]
 })
 export class VideoImportUrlComponent implements OnInit, AfterViewInit, CanComponentDeactivate {
+  private authService = inject(AuthService)
   private loadingBar = inject(LoadingBarService)
   private notifier = inject(Notifier)
   private videoService = inject(VideoService)
@@ -50,6 +51,7 @@ export class VideoImportUrlComponent implements OnInit, AfterViewInit, CanCompon
   private route = inject(ActivatedRoute)
   private chapterService = inject(VideoChapterService)
   private captionService = inject(VideoCaptionService)
+  private playerSettingsService = inject(PlayerSettingsService)
 
   readonly userChannels = input.required<SelectChannelItem[]>()
   readonly userQuota = input.required<UserVideoQuota>()
@@ -111,7 +113,8 @@ export class VideoImportUrlComponent implements OnInit, AfterViewInit, CanCompon
     const videoEdit = VideoEdit.createFromImport(serverConfig, {
       targetUrl: this.targetUrl,
       channelId: this.firstStepChannelId,
-      support: this.userChannels().find(c => c.id === this.firstStepChannelId).support ?? ''
+      support: this.userChannels().find(c => c.id === this.firstStepChannelId).support ?? '',
+      user: this.authService.getUser()
     })
     this.manageController.setConfig({ manageType: 'import-url', serverConfig: this.serverService.getHTMLConfig() })
     this.manageController.setVideoEdit(videoEdit)
@@ -120,17 +123,18 @@ export class VideoImportUrlComponent implements OnInit, AfterViewInit, CanCompon
 
     this.videoImportService.importVideo(videoEdit.toVideoImportCreate(this.highestPrivacy()))
       .pipe(
-        switchMap(previous => {
+        switchMap(({ video }) => {
           return forkJoin([
-            this.captionService.listCaptions(previous.video.uuid),
-            this.chapterService.getChapters({ videoId: previous.video.uuid }),
-            this.videoService.getVideo({ videoId: previous.video.uuid })
-          ]).pipe(map(([ { data: captions }, { chapters }, video ]) => ({ captions, chapters, video })))
+            this.captionService.listCaptions(video.uuid),
+            this.chapterService.getChapters({ videoId: video.uuid }),
+            this.playerSettingsService.getVideoSettings({ videoId: video.uuid, raw: true }),
+            this.videoService.getVideo({ videoId: video.uuid })
+          ]).pipe(map(([ { data: captions }, { chapters }, playerSettings, video ]) => ({ captions, chapters, playerSettings, video })))
         })
       )
       .subscribe({
-        next: async ({ video, captions, chapters }) => {
-          await videoEdit.loadFromAPI({ video, captions, chapters })
+        next: async ({ video, playerSettings, captions, chapters }) => {
+          await videoEdit.loadFromAPI({ video, captions, playerSettings, chapters, loadPrivacy: false })
 
           this.loadingBar.useRef().complete()
 

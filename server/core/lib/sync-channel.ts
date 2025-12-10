@@ -16,9 +16,9 @@ export async function synchronizeChannel (options: {
   externalChannelUrl: string
   videosCountLimit: number
   channelSync?: MChannelSync
-  onlyAfter?: Date
+  skipPublishedBefore?: Date
 }) {
-  const { channel, externalChannelUrl, videosCountLimit, onlyAfter, channelSync } = options
+  const { channel, externalChannelUrl, videosCountLimit, skipPublishedBefore, channelSync } = options
 
   if (channelSync) {
     channelSync.state = VideoChannelSyncState.PROCESSING
@@ -27,7 +27,7 @@ export async function synchronizeChannel (options: {
   }
 
   try {
-    const user = await UserModel.loadByChannelActorId(channel.actorId)
+    const user = await UserModel.loadByChannelActorId(channel.Actor.id)
     const youtubeDL = new YoutubeDLWrapper(
       externalChannelUrl,
       ServerConfigManager.Instance.getEnabledResolutions('vod'),
@@ -58,7 +58,7 @@ export async function synchronizeChannel (options: {
       logger.debug(`Import candidate: ${targetUrl}`, lTags())
 
       try {
-        if (await skipImport({ channel, channelSync, targetUrl, onlyAfter })) continue
+        if (await skipImport({ channel, channelSync, targetUrl, skipPublishedBefore })) continue
 
         const { job } = await buildYoutubeDLImport({
           user,
@@ -66,7 +66,8 @@ export async function synchronizeChannel (options: {
           targetUrl,
           channelSync,
           importDataOverride: {
-            privacy: VideoPrivacy.PUBLIC
+            privacy: VideoPrivacy.PUBLIC,
+            support: channel.support
           }
         })
 
@@ -98,9 +99,9 @@ async function skipImport (options: {
   channel: MChannelAccountDefault
   channelSync: MChannelSync
   targetUrl: string
-  onlyAfter?: Date
+  skipPublishedBefore?: Date
 }) {
-  const { channel, channelSync, targetUrl, onlyAfter } = options
+  const { channel, channelSync, targetUrl, skipPublishedBefore } = options
 
   if (await VideoImportModel.urlAlreadyImported({ channelId: channel.id, channelSyncId: channelSync?.id, targetUrl })) {
     logger.debug(
@@ -110,7 +111,7 @@ async function skipImport (options: {
     return true
   }
 
-  if (onlyAfter) {
+  if (skipPublishedBefore) {
     const youtubeDL = new YoutubeDLWrapper(
       targetUrl,
       ServerConfigManager.Instance.getEnabledResolutions('vod'),
@@ -119,7 +120,7 @@ async function skipImport (options: {
 
     const videoInfo = await youtubeDL.getInfoForDownload()
 
-    const onlyAfterWithoutTime = new Date(onlyAfter)
+    const onlyAfterWithoutTime = new Date(skipPublishedBefore)
     onlyAfterWithoutTime.setHours(0, 0, 0, 0)
 
     if (videoInfo.originallyPublishedAtWithoutTime.getTime() < onlyAfterWithoutTime.getTime()) {

@@ -7,8 +7,7 @@ import { VideoBlockService } from '@app/shared/shared-moderation/video-block.ser
 import { UserSubscriptionService } from '@app/shared/shared-user-subscription/user-subscription.service'
 import { VideoCommentService } from '@app/shared/shared-video-comment/video-comment.service'
 import { LiveVideoService } from '@app/shared/shared-video-live/live-video.service'
-import { VideoPlaylistService } from '@app/shared/shared-video-playlist/video-playlist.service'
-import { WatchedWordsListService } from '@app/shared/standalone-watched-words/watched-words-list.service'
+import { WatchedWordsListService } from '@app/shared/shared-watched-words/watched-words-list.service'
 import { LoginGuard } from '../core'
 import { CommentsOnMyVideosComponent } from './comments-on-my-videos/comments-on-my-videos.component'
 import { AutomaticTagService } from './my-auto-tag-policies/automatic-tag.service'
@@ -33,7 +32,6 @@ import { MyWatchedWordsListComponent } from './my-watched-words-list/my-watched-
 const commonConfig = {
   path: '',
   providers: [
-    VideoPlaylistService,
     BlocklistService,
     VideoBlockService,
     AbuseService,

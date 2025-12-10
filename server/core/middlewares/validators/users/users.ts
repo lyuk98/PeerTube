@@ -1,6 +1,8 @@
 import { arrayify, forceNumber } from '@peertube/peertube-core-utils'
 import { HttpStatusCode, ServerErrorCode, UserRole, UserUpdateMe } from '@peertube/peertube-models'
 import { isStringArray } from '@server/helpers/custom-validators/search.js'
+import { isNSFWFlagsValid } from '@server/helpers/custom-validators/videos.js'
+import { loadReservedActorName } from '@server/lib/local-actor.js'
 import { Hooks } from '@server/lib/plugins/hooks.js'
 import { MUser } from '@server/types/models/user/user.js'
 import express from 'express'
@@ -15,6 +17,8 @@ import {
   isUserDescriptionValid,
   isUserDisplayNameValid,
   isUserEmailPublicValid,
+  isUserFeatureInfo,
+  isUserLanguage,
   isUserNoModal,
   isUserNSFWPolicyValid,
   isUserP2PEnabledValid,
@@ -31,7 +35,6 @@ import { isVideoChannelUsernameValid } from '../../../helpers/custom-validators/
 import { logger } from '../../../helpers/logger.js'
 import { isThemeRegistered } from '../../../lib/plugins/theme-utils.js'
 import { Redis } from '../../../lib/redis.js'
-import { ActorModel } from '../../../models/actor/actor.js'
 import {
   areValidationErrors,
   checkEmailDoesNotAlreadyExist,
@@ -42,7 +45,6 @@ import {
   doesVideoExist,
   isValidVideoIdParam
 } from '../shared/index.js'
-import { isNSFWFlagsValid } from '@server/helpers/custom-validators/videos.js'
 
 export const usersListValidator = [
   query('blocked')
@@ -88,7 +90,7 @@ export const usersAddValidator = [
 
   async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (areValidationErrors(req, res, { omitBodyLog: true })) return
-    if (!await checkUsernameOrEmailDoNotAlreadyExist(req.body.username, req.body.email, res)) return
+    if (!await checkUsernameOrEmailDoNotAlreadyExist({ username: req.body.username, email: req.body.email, req, res })) return
 
     const authUser = res.locals.oauth.token.User
     if (authUser.role !== UserRole.ADMINISTRATOR && req.body.role !== UserRole.USER) {
@@ -103,7 +105,7 @@ export const usersAddValidator = [
         return res.fail({ message: 'Channel name cannot be the same as user username.' })
       }
 
-      const existing = await ActorModel.loadLocalByName(req.body.channelName)
+      const existing = await loadReservedActorName(req.body.channelName)
       if (existing) {
         return res.fail({
           status: HttpStatusCode.CONFLICT_409,
@@ -129,7 +131,7 @@ export const usersRemoveValidator = [
       return res.fail({ message: 'Cannot remove the root user' })
     }
 
-    if (!checkUserCanModerate(user, res)) return
+    if (!checkCanModerate(user, res)) return
 
     return next()
   }
@@ -151,7 +153,7 @@ export const usersBlockToggleValidator = [
       return res.fail({ message: 'Cannot block the root user' })
     }
 
-    if (!checkUserCanModerate(user, res)) return
+    if (!checkCanModerate(user, res)) return
 
     return next()
   }
@@ -206,9 +208,13 @@ export const usersUpdateValidator = [
       return res.fail({ message: 'Cannot change root role.' })
     }
 
-    if (!checkUserCanModerate(user, res)) return
+    if (!checkCanModerate(user, res)) return
 
-    if (req.body.email && req.body.email !== user.email && !await checkEmailDoesNotAlreadyExist(req.body.email, res)) return
+    if (
+      req.body.email &&
+      req.body.email !== user.email &&
+      !await checkEmailDoesNotAlreadyExist({ email: req.body.email, req, res })
+    ) return
 
     return next()
   }
@@ -259,6 +265,9 @@ export const usersUpdateMeValidator = [
   body('videoLanguages')
     .optional()
     .custom(isUserVideoLanguages),
+  body('language')
+    .optional()
+    .custom(isUserLanguage),
   body('videosHistoryEnabled')
     .optional()
     .custom(isUserVideosHistoryEnabledValid).withMessage('Should have a valid videos history enabled boolean'),
@@ -319,7 +328,11 @@ export const usersUpdateMeValidator = [
 
     if (areValidationErrors(req, res, { omitBodyLog: true })) return
 
-    if (body.email && body.email !== user.email && !await checkEmailDoesNotAlreadyExist(body.email, res)) return
+    if (
+      body.email &&
+      body.email !== user.email &&
+      !await checkEmailDoesNotAlreadyExist({ email: body.email, req, res })
+    ) return
 
     return next()
   }
@@ -351,7 +364,7 @@ export const usersVideoRatingValidator = [
   }
 ]
 
-export const usersVideosValidator = [
+export const listMyVideosValidator = [
   query('channelId')
     .optional()
     .customSanitizer(toIntOrNull)
@@ -362,10 +375,19 @@ export const usersVideosValidator = [
     .customSanitizer(arrayify)
     .custom(isStringArray).withMessage('Should have a valid channelNameOneOf array'),
 
+  query('includeCollaborations')
+    .optional()
+    .customSanitizer(toBooleanOrNull),
+
   async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (areValidationErrors(req, res)) return
 
-    if (req.query.channelId && !await doesChannelIdExist({ id: req.query.channelId, checkManage: true, checkIsLocal: true, res })) return
+    if (
+      req.query.channelId &&
+      !await doesChannelIdExist({ id: req.query.channelId, checkCanManage: true, checkIsLocal: true, checkIsOwner: false, req, res })
+    ) {
+      return
+    }
 
     return next()
   }
@@ -468,11 +490,22 @@ export const userAutocompleteValidator = [
     .not().isEmpty()
 ]
 
+export const usersNewFeatureInfoReadValidator = [
+  body('feature')
+    .custom(isUserFeatureInfo),
+
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (areValidationErrors(req, res)) return
+
+    return next()
+  }
+]
+
 // ---------------------------------------------------------------------------
 // Private
 // ---------------------------------------------------------------------------
 
-function checkUserCanModerate (onUser: MUser, res: express.Response) {
+function checkCanModerate (onUser: MUser, res: express.Response) {
   const authUser = res.locals.oauth.token.User
 
   if (authUser.role === UserRole.ADMINISTRATOR) return true

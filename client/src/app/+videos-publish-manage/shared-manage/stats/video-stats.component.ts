@@ -1,12 +1,12 @@
-import { NgFor, NgIf } from '@angular/common'
+import { CommonModule } from '@angular/common'
 import { Component, LOCALE_ID, OnInit, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ActivatedRoute } from '@angular/router'
-import { Notifier, PeerTubeRouterService } from '@app/core'
+import { Notifier, PeerTubeRouterService, ServerService } from '@app/core'
 import { GlobalIconComponent } from '@app/shared/shared-icons/global-icon.component'
 import { NumberFormatterPipe } from '@app/shared/shared-main/common/number-formatter.pipe'
 import { LiveVideoService } from '@app/shared/shared-video-live/live-video.service'
-import { NgbNav, NgbNavContent, NgbNavItem, NgbNavLink, NgbNavLinkBase, NgbNavOutlet } from '@ng-bootstrap/ng-bootstrap'
+import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap'
 import { secondsToTime } from '@peertube/peertube-core-utils'
 import {
   HttpStatusCode,
@@ -51,9 +51,9 @@ type Card = { label: string, value: string | number, moreInfo?: string, help?: s
 
 const isBarGraph = (graphId: ActiveGraphId): graphId is BarGraphs => BAR_GRAPHS.some(graph => graph === graphId)
 
-ChartJSDefaults.backgroundColor = getComputedStyle(document.body).getPropertyValue('--bg')
-ChartJSDefaults.borderColor = getComputedStyle(document.body).getPropertyValue('--bg-secondary-500')
-ChartJSDefaults.color = getComputedStyle(document.body).getPropertyValue('--fg')
+ChartJSDefaults.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--bg')
+ChartJSDefaults.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary-500')
+ChartJSDefaults.color = getComputedStyle(document.documentElement).getPropertyValue('--fg')
 
 @Component({
   templateUrl: './video-stats.component.html',
@@ -63,20 +63,14 @@ ChartJSDefaults.color = getComputedStyle(document.body).getPropertyValue('--fg')
   ],
   providers: [ NumberFormatterPipe ],
   imports: [
-    NgFor,
-    NgIf,
+    CommonModule,
     HelpComponent,
     EmbedComponent,
     SelectOptionsComponent,
     FormsModule,
-    NgbNav,
-    NgbNavItem,
-    NgbNavLink,
-    NgbNavLinkBase,
-    NgbNavContent,
+    NgbNavModule,
     ChartModule,
     ButtonComponent,
-    NgbNavOutlet,
     GlobalIconComponent
   ]
 })
@@ -89,6 +83,7 @@ export class VideoStatsComponent implements OnInit {
   private numberFormatter = inject(NumberFormatterPipe)
   private liveService = inject(LiveVideoService)
   private manageController = inject(VideoManageController)
+  private serverService = inject(ServerService)
 
   // Cannot handle date filters
   globalStatsCards: Card[] = []
@@ -185,6 +180,10 @@ export class VideoStatsComponent implements OnInit {
         ? new Date(params.endDate)
         : undefined
 
+      if (!this.statsStartDate && !this.statsEndDate) {
+        this.currentDateFilter = 'all'
+      }
+
       this.loadChart()
       this.loadOverallStats()
     })
@@ -204,9 +203,9 @@ export class VideoStatsComponent implements OnInit {
     this.activeGraphId = newActive
 
     if (newActive === 'countries') {
-      this.chartHeight = `${Math.max(this.countries.length * 20, 300)}px`
+      this.chartHeight = `${Math.max(this.countries.length * 25, 300)}px`
     } else if (newActive === 'regions') {
-      this.chartHeight = `${Math.max(this.regions.length * 20, 300)}px`
+      this.chartHeight = `${Math.max(this.regions.length * 25, 300)}px`
     } else {
       this.chartHeight = '300px'
     }
@@ -654,7 +653,7 @@ export class VideoStatsComponent implements OnInit {
   }
 
   private buildChartColor () {
-    return getComputedStyle(document.body).getPropertyValue('--border-primary')
+    return getComputedStyle(document.documentElement).getPropertyValue('--border-primary')
   }
 
   private formatXTick (options: {
@@ -752,5 +751,19 @@ export class VideoStatsComponent implements OnInit {
       minute: 'numeric',
       second: 'numeric'
     })
+  }
+
+  // ---------------------------------------------------------------------------
+
+  hasMaxViewsAge () {
+    return this.getMaxViewsAge() !== -1
+  }
+
+  getMaxViewsAgeDate () {
+    return new Date(Date.now() - this.getMaxViewsAge())
+  }
+
+  private getMaxViewsAge () {
+    return this.serverService.getHTMLConfig().views.videos.local.maxAge
   }
 }

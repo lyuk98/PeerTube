@@ -10,6 +10,7 @@ import { checkMissedConfig, checkFFmpeg, checkNodeVersion } from './core/initial
 import { CONFIG } from './core/initializers/config.js'
 import { API_VERSION, WEBSERVER, loadLanguages } from './core/initializers/constants.js'
 import { logger } from './core/helpers/logger.js'
+import { initI18n, useI18n } from '@server/helpers/i18n.js'
 
 const missed = checkMissedConfig()
 if (missed.length !== 0) {
@@ -55,8 +56,10 @@ migrate()
   })
 
 // ----------- Initialize -----------
-loadLanguages()
-  .catch(err => logger.error('Cannot load languages', { err }))
+Promise.all([
+  initI18n(),
+  loadLanguages()
+]).catch(err => logger.error('Cannot load i18n/languages', { err }))
 
 // Express configuration
 import express from 'express'
@@ -82,6 +85,8 @@ app.use((_req, res, next) => {
 
   return next()
 })
+
+app.use(useI18n)
 
 // Security middleware
 import { baseCSP } from './core/middlewares/csp.js'
@@ -147,6 +152,7 @@ import { OpenTelemetryMetrics } from '@server/lib/opentelemetry/metrics.js'
 import { ApplicationModel } from '@server/models/application/application.js'
 import { VideoChannelSyncLatestScheduler } from '@server/lib/schedulers/video-channel-sync-latest-scheduler.js'
 import { RemoveExpiredUserExportsScheduler } from '@server/lib/schedulers/remove-expired-user-exports-scheduler.js'
+import { UpdateTokenSessionScheduler } from '@server/lib/schedulers/update-token-session-scheduler.js'
 
 // ----------- Command line -----------
 
@@ -277,6 +283,8 @@ app.use((err, req, res: express.Response, _next) => {
 
 const { server, trackerServer } = createWebsocketTrackerServer(app)
 
+server.requestTimeout = CONFIG.HTTP_TIMEOUTS.REQUEST
+
 // ----------- Run -----------
 
 async function startApplication () {
@@ -297,10 +305,10 @@ async function startApplication () {
 
   Redis.Instance.init()
   Emailer.Instance.init()
+  JobQueue.Instance.init()
 
   await Promise.all([
     Emailer.Instance.checkConnection(),
-    JobQueue.Instance.init(),
     ServerConfigManager.Instance.init()
   ])
 
@@ -320,6 +328,7 @@ async function startApplication () {
   GeoIPUpdateScheduler.Instance.enable()
   RunnerJobWatchDogScheduler.Instance.enable()
   RemoveExpiredUserExportsScheduler.Instance.enable()
+  UpdateTokenSessionScheduler.Instance.enable()
 
   OpenTelemetryMetrics.Instance.registerMetrics({ trackerServer })
 

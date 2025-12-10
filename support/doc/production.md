@@ -16,11 +16,20 @@ Follow the steps of the [dependencies guide](/support/doc/dependencies.md).
 
 Create a `peertube` user with `/var/www/peertube` home:
 
-```bash
+::: code-group
+
+```bash [GNU/Linux]
 sudo useradd -m -d /var/www/peertube -s /usr/sbin/nologin -p peertube peertube
 ```
 
+```bash [FreeBSD]
+sudo pw useradd -n peertube -d /var/www/peertube -s /usr/sbin/nologin -m
+```
+
+:::
+
 Set its password:
+
 ```bash
 sudo passwd peertube
 ```
@@ -28,15 +37,8 @@ sudo passwd peertube
 Ensure the peertube root directory is traversable by nginx:
 
 ```bash
-ls -ld /var/www/peertube # Should be drwxr-xr-x
+sudo chmod 755 /var/www/peertube
 ```
-
-**On FreeBSD**
-
-```bash
-sudo pw useradd -n peertube -d /var/www/peertube -s /usr/sbin/nologin -m
-```
-or use `adduser` to create it interactively.
 
 ### :card_file_box: Database
 
@@ -304,7 +306,7 @@ cd /var/www/peertube/peertube-latest/scripts && sudo -H -u peertube ./upgrade.sh
 sudo systemctl restart peertube # Or use your OS command to restart PeerTube if you don't use systemd
 ```
 
-You may want to run `sudo -u peertube yarn cache clean` after several upgrades to free up disk space.
+You may want to run `sudo -u peertube pnpm store prune` after several upgrades to free up disk space.
 
 <details>
 <summary><strong>Prefer manual upgrade?</strong></summary>
@@ -357,11 +359,18 @@ cd /var/www/peertube && \
 
 ### Update PeerTube configuration
 
-Check for configuration changes, and report them in your `config/production.yaml` file:
+If your system has `git` installed, the auto upgrade script should have created a `config/production.yaml.new` file that merges your current configuration file with the new configuration keys introduced by the new PeerTube version.
+
+Review the file, check and fix any potential conflicts:
 
 ```bash
-cd /var/www/peertube/versions
-diff -u "$(ls -t | head -2 | tail -1)/config/production.yaml.example" "$(ls -t | head -1)/config/production.yaml.example"
+cd /var/www/peertube && sudo -u peertube diff config/production.yaml config/production.yaml.new
+```
+
+Then replace your current configuration file by the new one:
+
+```bash
+cd /var/www/peertube && sudo -u peertube cp config/production.yaml.new config/production.yaml
 ```
 
 ### Update nginx configuration

@@ -15,7 +15,7 @@ import {
   VIDEO_PLAYLIST_TYPES,
   VIDEO_PRIVACIES,
   VIDEO_STATES
-} from '@peertube/peertube-server/core/initializers/constants.js'
+} from '../../server/core/initializers/constants.js'
 import { readJsonSync, writeJSON } from 'fs-extra/esm'
 import { readdir } from 'fs/promises'
 import { join } from 'path'
@@ -26,8 +26,10 @@ const playerKeys = {
   'Auto': 'Auto',
   'Speed': 'Speed',
   'Subtitles/CC': 'Subtitles/CC',
+  'Peers': 'Peers',
   'peers': 'peers',
   'peer': 'peer',
+  'no peers': 'no peers',
   'Go to the video page': 'Go to the video page',
   'Settings': 'Settings',
   'Watching this video may reveal your IP address to others.': 'Watching this video may reveal your IP address to others.',
@@ -87,13 +89,17 @@ const playerKeys = {
   'Audio only': 'Audio only',
   'Sensitive content': 'Sensitive content',
   'This video contains sensitive content.': 'This video contains sensitive content.',
+  'This video contains sensitive content, including:': 'This video contains sensitive content, including:',
   'Learn more': 'Learn more',
   'Content warning': 'Content warning',
   'Violence': 'Violence',
   'Shocking Content': 'Shocking Content',
   'Explicit Sex': 'Explicit Sex',
   'Upload speed:': 'Upload speed:',
-  'Download speed:': 'Download speed:'
+  'Download speed:': 'Download speed:',
+  'Uploader note:': 'Uploader note:',
+  'Close': 'Close',
+  '(skipped {1} buffers) ': '(skipped {1} buffers) '
 }
 Object.assign(playerKeys, videojs)
 

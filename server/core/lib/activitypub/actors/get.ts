@@ -16,6 +16,7 @@ import { checkUrlsSameHost } from '../url.js'
 import { refreshActorIfNeeded } from './refresh.js'
 import { APActorCreator, fetchRemoteActor } from './shared/index.js'
 
+// FIXME: use an object for params
 function getOrCreateAPActor (
   activityActor: string | ActivityPubActor,
   fetchType: 'all',
@@ -37,7 +38,7 @@ async function getOrCreateAPActor (
   updateCollections = false
 ): Promise<MActorFullActor | MActorAccountChannelId> {
   const actorUrl = getAPId(activityActor)
-  let actor = await loadActorFromDB(actorUrl, fetchType)
+  let actor = await loadActorByUrl(actorUrl, fetchType)
 
   let created = false
   let accountPlaylistsUrl: string
@@ -87,6 +88,8 @@ async function getOrCreateAPOwner (actorObject: ActivityPubActor, actorId: strin
     return getOrCreateAPActor(accountAttributedTo, 'all', recurseIfNeeded)
   } catch (err) {
     logger.error(`Cannot get or create account attributed to video channel ${actorId}`)
+
+    // eslint-disable-next-line preserve-caught-error
     throw new Error(err)
   }
 }
@@ -114,24 +117,12 @@ async function findOwner (rootUrl: string, attributedTo: APObjectId[] | APObject
 // ---------------------------------------------------------------------------
 
 export {
-  getOrCreateAPOwner,
+  findOwner,
   getOrCreateAPActor,
-  findOwner
+  getOrCreateAPOwner
 }
 
 // ---------------------------------------------------------------------------
-
-async function loadActorFromDB (actorUrl: string, fetchType: ActorLoadByUrlType) {
-  let actor = await loadActorByUrl(actorUrl, fetchType)
-
-  // Orphan actor (not associated to an account of channel) so recreate it
-  if (actor && (!actor.Account && !actor.VideoChannel)) {
-    await actor.destroy()
-    actor = null
-  }
-
-  return actor
-}
 
 async function scheduleOutboxFetchIfNeeded (actor: MActor, created: boolean, refreshed: boolean, updateCollections: boolean) {
   if ((created === true || refreshed === true) && updateCollections === true) {

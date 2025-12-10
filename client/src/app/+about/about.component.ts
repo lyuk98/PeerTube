@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import { Component, OnInit, inject, viewChild } from '@angular/core'
 import { RouterOutlet } from '@angular/router'
 import { ServerService } from '@app/core'
@@ -14,7 +13,7 @@ import { HTMLServerConfig } from '@peertube/peertube-models'
   selector: 'my-about',
   templateUrl: './about.component.html',
   styleUrls: [ './about.component.scss' ],
-  imports: [ CommonModule, RouterOutlet, HorizontalMenuComponent, GlobalIconComponent, ButtonComponent ]
+  imports: [ RouterOutlet, HorizontalMenuComponent, GlobalIconComponent, ButtonComponent ]
 })
 export class AboutComponent implements OnInit {
   private server = inject(ServerService)
@@ -32,7 +31,7 @@ export class AboutComponent implements OnInit {
     this.config = this.server.getHTMLConfig()
 
     this.bannerUrl = this.config.instance.banners.length !== 0
-      ? maxBy(this.config.instance.banners, 'width').path
+      ? maxBy(this.config.instance.banners, 'width').fileUrl
       : undefined
 
     this.avatarUrl = Actor.GET_ACTOR_AVATAR_URL(this.config.instance, 110)

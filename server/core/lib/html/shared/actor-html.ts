@@ -1,10 +1,10 @@
-import { escapeHTML, getChannelRSSFeeds, getDefaultRSSFeeds, maxBy } from '@peertube/peertube-core-utils'
+import { escapeHTML, maxBy } from '@peertube/peertube-core-utils'
 import { HttpStatusCode } from '@peertube/peertube-models'
-import { WEBSERVER } from '@server/initializers/constants.js'
+import { getChannelRSSFeeds, getDefaultRSSFeeds } from '@server/lib/rss.js'
 import { AccountModel } from '@server/models/account/account.js'
 import { ActorImageModel } from '@server/models/actor/actor-image.js'
 import { VideoChannelModel } from '@server/models/video/video-channel.js'
-import { MAccountHost, MChannelHost } from '@server/types/models/index.js'
+import { MAccountDefault, MChannelDefault } from '@server/types/models/index.js'
 import express from 'express'
 import { CONFIG } from '../../../initializers/config.js'
 import { PageHtml } from './page-html.js'
@@ -16,7 +16,7 @@ export class ActorHtml {
 
     return this.getAccountOrChannelHTMLPage({
       loader: () => accountModelPromise,
-      getRSSFeeds: () => getDefaultRSSFeeds(WEBSERVER.URL, CONFIG.INSTANCE.NAME),
+      getRSSFeeds: () => getDefaultRSSFeeds(req),
       req,
       res
     })
@@ -27,7 +27,7 @@ export class ActorHtml {
 
     return this.getAccountOrChannelHTMLPage({
       loader: () => Promise.resolve(videoChannel),
-      getRSSFeeds: () => getChannelRSSFeeds(WEBSERVER.URL, CONFIG.INSTANCE.NAME, videoChannel),
+      getRSSFeeds: () => getChannelRSSFeeds(videoChannel, req),
       req,
       res
     })
@@ -44,8 +44,8 @@ export class ActorHtml {
 
       getRSSFeeds: () =>
         account
-          ? getDefaultRSSFeeds(WEBSERVER.URL, CONFIG.INSTANCE.NAME)
-          : getChannelRSSFeeds(WEBSERVER.URL, CONFIG.INSTANCE.NAME, channel),
+          ? getDefaultRSSFeeds(req)
+          : getChannelRSSFeeds(channel, req),
 
       req,
       res
@@ -55,8 +55,8 @@ export class ActorHtml {
   // ---------------------------------------------------------------------------
 
   private static async getAccountOrChannelHTMLPage (options: {
-    loader: () => Promise<MAccountHost | MChannelHost>
-    getRSSFeeds: (entity: MAccountHost | MChannelHost) => TagsOptions['rssFeeds']
+    loader: () => Promise<MAccountDefault | MChannelDefault>
+    getRSSFeeds: (entity: MAccountDefault | MChannelDefault) => TagsOptions['rssFeeds']
     req: express.Request
     res: express.Response
   }) {
@@ -108,7 +108,7 @@ export class ActorHtml {
         updatedAt: entity.updatedAt
       },
 
-      forbidIndexation: !entity.Actor.isOwned(),
+      forbidIndexation: !entity.Actor.isLocal(),
       embedIndexation: false,
 
       rssFeeds: getRSSFeeds(entity)
