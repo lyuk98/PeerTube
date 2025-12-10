@@ -4,6 +4,7 @@ PartOf=peertube-pod.service
 [Container]
 ContainerName=peertube-webserver
 Image=docker.io/chocobozzz/peertube-webserver:latest
+AutoUpdate=registry
 Pod=peertube.pod
 
 EnvironmentFile=.env

@@ -4,6 +4,7 @@ PartOf=peertube-pod.service
 [Container]
 ContainerName=tailscaled
 Image=docker.io/tailscale/tailscale:stable
+AutoUpdate=registry
 Pod=peertube.pod
 
 EnvironmentFile=.env

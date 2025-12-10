@@ -4,6 +4,7 @@ PartOf=peertube-pod.service
 [Container]
 ContainerName=peertube-redis
 Image=docker.io/redis:8-alpine
+AutoUpdate=registry
 Pod=peertube.pod
 
 EnvironmentFile=.env
