@@ -10,7 +10,7 @@ After=peertube-postfix.service
 
 [Container]
 ContainerName=peertube-server
-Image=docker.io/chocobozzz/peertube:v8.0.0
+Image=docker.io/chocobozzz/peertube:v8.0.1
 Pod=peertube.pod
 
 EnvironmentFile=.env
