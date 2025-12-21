@@ -1,12 +1,38 @@
 # Changelog
 
+## v8.0.1
+
+### IMPORTANT NOTES
+
+ * Follow v8.0.0 IMPORTANT NOTES if you upgrade from PeerTube <= v7.3.0
+
+### NGINX
+
+ * Fix HTTP3 compatibility issue in nginx template: https://github.com/Chocobozzz/PeerTube/commit/412df6cb2ca034b06356494719885d63297ebdbc
+
+### Bug fixes
+
+ * Prevent transcription error when the video has been deleted
+ * Fix select button style for redundancy
+ * Fix invalid form after admin configuration update
+ * Fix alert styling in watch page
+ * Fix left menu collapse when accessing admin configuration
+ * Fix config wizard not applying config
+ * Correctly do not open again welcome modal
+ * Fix decaching node modules paths of plugins
+ * Send 401 HTTP code instead of 404 when fetching the HTML page of a password protected video
+ * More precise date interval (*x min ago*, *x months ago*, etc.)
+ * Reorder account management dropdown entries
+ * Fix youtube playlist detection for channel synchronization
+ * Fix filtering on privacy when listing my videos
+
 
 ## v8.0.0
 
 ### IMPORTANT NOTES
 
   * Database migrations of this version can take a long time (up to 30 minutes on an instance with many users/federation actors and a slow database disk)
-  * You need to manually execute a migration script **after your upgrade** while PeerTube is running and the database migration is complete (`Migrations finished. New migration version schema: 965` in PeerTube startup logs):
+  * You need to manually execute a migration script **after your upgrade** while PeerTube is running and the database migration is complete (`Migrations finished. New migration version schema: 970` in PeerTube startup logs):
     * Classic installation: `cd /var/www/peertube/peertube-latest && sudo -u peertube NODE_CONFIG_DIR=/var/www/peertube/config NODE_ENV=production node dist/scripts/migrations/peertube-8.0.js`
     * Docker installation: `cd /var/www/peertube-docker && docker compose exec -u peertube peertube node dist/scripts/migrations/peertube-8.0.js`
   * `yarn` NodeJS packages manager has been removed in favor of `pnpm`. Follow the [dependencies guide](https://docs.joinpeertube.org/support/doc/dependencies) to install `pnpm` on your system **before the upgrade**
