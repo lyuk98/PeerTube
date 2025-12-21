@@ -71,6 +71,7 @@ jobs:
 
           echo "PEERTUBE_REDIS_HOSTNAME=localhost" >> containers/systemd/.env
           echo "TS_AUTHKEY=$TS_AUTHKEY" >> containers/systemd/.env
+          echo "dns_cloudflare_api_token = $CLOUDFLARE_API_TOKEN" > containers/cloudflare.ini
 
       - name: Install files to host
         run: |
@@ -78,7 +79,10 @@ jobs:
             "systemctl --user is-active peertube-pod.service && systemctl --user stop peertube-pod.service || true"
 
           scp -o StrictHostKeyChecking=no support/nginx/peertube $TS_USER@$TS_MACHINE:~/docker-volume/nginx/peertube
+          scp -o StrictHostKeyChecking=no containers/cloudflare.ini $TS_USER@$TS_MACHINE:~/docker-volume/certbot/conf/cloudflare.ini
           scp -o StrictHostKeyChecking=no -r containers/systemd/. $TS_USER@$TS_MACHINE:~/.config/containers/systemd/
+
+          ssh -o StrictHostKeyChecking=no $TS_USER@$TS_MACHINE "chmod 0600 ~/docker-volume/certbot/conf/cloudflare.ini"
           ssh -o StrictHostKeyChecking=no $TS_USER@$TS_MACHINE "systemctl --user daemon-reload"
 
       - name: Start PeerTube
