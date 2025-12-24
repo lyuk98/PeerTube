@@ -38,6 +38,7 @@ jobs:
           PEERTUBE_SECRET: ${{ secrets.PEERTUBE_SECRET }}
           PEERTUBE_ADMIN_EMAIL: ${{ secrets.PEERTUBE_ADMIN_EMAIL }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           CMDLINE="mkdir -p --"
           CMDLINE+=" ~/docker-volume/nginx"
