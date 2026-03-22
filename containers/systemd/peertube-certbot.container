@@ -7,7 +7,7 @@ Image=docker.io/certbot/dns-cloudflare:latest
 AutoUpdate=registry
 Pod=peertube.pod
 
-Entrypoint=["/bin/sh", "-c", "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;"]
+Entrypoint=["/bin/sh", "-c", "trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;"]
 
 Volume=%h/docker-volume/certbot/conf:/etc/letsencrypt
 Volume=peertube-certbot-www.volume:/var/www/certbot
