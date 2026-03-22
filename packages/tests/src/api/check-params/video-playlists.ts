@@ -20,7 +20,7 @@ import {
   setAccessTokensToServers,
   setDefaultVideoChannel
 } from '@peertube/peertube-server-commands'
-import { checkBadCountPagination, checkBadSortPagination, checkBadStartPagination } from '@tests/shared/checks.js'
+import { checkBadCountPagination, checkBadSort, checkBadStartPagination } from '@tests/shared/checks.js'
 import { expect } from 'chai'
 
 describe('Test video playlists API validator', function () {
@@ -146,9 +146,9 @@ describe('Test video playlists API validator', function () {
     })
 
     it('Should fail with an incorrect sort', async function () {
-      await checkBadSortPagination(server.url, globalPath, server.accessToken)
-      await checkBadSortPagination(server.url, accountPath, server.accessToken)
-      await checkBadSortPagination(server.url, videoChannelPath, server.accessToken)
+      await checkBadSort(server.url, globalPath, server.accessToken)
+      await checkBadSort(server.url, accountPath, server.accessToken)
+      await checkBadSort(server.url, videoChannelPath, server.accessToken)
     })
 
     it('Should fail with a bad playlist type', async function () {
@@ -258,7 +258,7 @@ describe('Test video playlists API validator', function () {
         attributes: {
           displayName: 'display name',
           privacy: VideoPlaylistPrivacy.UNLISTED,
-          thumbnailfile: 'custom-thumbnail.jpg',
+          thumbnailfile: 'custom-thumbnail-280x157.jpg',
           videoChannelId: server.store.channel.id,
 
           ...attributes
@@ -805,6 +805,30 @@ describe('Test video playlists API validator', function () {
         token: server.accessToken,
         path,
         query: { videoIds: [ 1, 'toto' ] }
+      })
+    })
+
+    it('Should succeed with many handles', async function () {
+      const handles = Array.from({ length: 90 }, (_, i) => i + 1)
+
+      await makeGetRequest({
+        url: server.url,
+        token: server.accessToken,
+        path,
+        query: { videoIds: handles },
+        expectedStatus: HttpStatusCode.OK_200
+      })
+    })
+
+    it('Should fail with too many handles', async function () {
+      const handles = Array.from({ length: 101 }, (_, i) => i + 1)
+
+      await makeGetRequest({
+        url: server.url,
+        token: server.accessToken,
+        path,
+        query: { videoIds: handles },
+        expectedStatus: HttpStatusCode.BAD_REQUEST_400
       })
     })
 

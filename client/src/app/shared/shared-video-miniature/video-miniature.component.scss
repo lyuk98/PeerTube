@@ -93,7 +93,7 @@ my-actor-host {
   }
 }
 
-// Grid mode
+// Grid mode inherited from parent component
 // Takes all the width on mobile
 .video-miniature:not(.display-as-row) {
   display: flex;
@@ -106,6 +106,8 @@ my-actor-host {
   }
 
   my-video-thumbnail {
+    --thumbnail-width: 100%; // Required by video-thumbnail component
+
     margin-bottom: 0.35rem;
 
     @include block-ratio($selector: "::ng-deep .video-thumbnail");
@@ -173,6 +175,7 @@ my-actor-host {
 
   --co-row-thumbnail-width: #{$video-thumbnail-width};
   --co-row-thumbnail-height: #{$video-thumbnail-height};
+  --thumbnail-width: var(--co-row-thumbnail-width); // Required by video-thumbnail component
 
   display: flex;
   flex-direction: row;

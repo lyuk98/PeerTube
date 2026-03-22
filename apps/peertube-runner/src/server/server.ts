@@ -26,6 +26,9 @@ export class RunnerServer {
   private gracefulShutdown = false
   private cleaningUp = false
   private initialized = false
+  private subsequentCheckAvailableErrors = 0
+
+  private ipcServer: IPCServer
 
   private readonly enabledJobsArray: RunnerJobType[]
 
@@ -53,9 +56,9 @@ export class RunnerServer {
     }
 
     // Run IPC
-    const ipcServer = new IPCServer()
+    this.ipcServer = new IPCServer()
     try {
-      await ipcServer.run(this)
+      await this.ipcServer.run(this)
     } catch (err) {
       logger.error(err, 'Cannot start local socket for IPC communication')
       process.exit(-1)
@@ -79,6 +82,8 @@ export class RunnerServer {
 
     logger.info(`Using ${ConfigManager.Instance.getTranscodingDirectory()} for transcoding directory`)
     logger.info(`Using ${ConfigManager.Instance.getStoryboardDirectory()} for storyboard directory`)
+
+    logger.info(`Server is ready to process jobs`)
 
     this.initialized = true
     await this.checkAvailableJobs()
@@ -225,6 +230,7 @@ export class RunnerServer {
     this.checkingAvailableJobs = true
 
     let hadAvailableJob = false
+    let hadError = false
 
     for (const server of shuffle([ ...this.servers ])) {
       try {
@@ -237,7 +243,7 @@ export class RunnerServer {
 
         await this.tryToExecuteJobAsync(server, job)
       } catch (err) {
-        hadAvailableJob = false
+        hadError = true
 
         const code = (err.res?.body as PeerTubeProblemDocument)?.code
 
@@ -259,7 +265,14 @@ export class RunnerServer {
 
     this.checkingAvailableJobs = false
 
-    if (hadAvailableJob && this.canProcessMoreJobs()) {
+    this.subsequentCheckAvailableErrors = hadError
+      ? this.subsequentCheckAvailableErrors + 1
+      : 0
+
+    if (this.subsequentCheckAvailableErrors >= 5) {
+      // Don't retry indefinitely if we always have an error
+      this.subsequentCheckAvailableErrors = 0
+    } else if (hadAvailableJob && this.canProcessMoreJobs()) {
       await wait(2500)
 
       this.checkAvailableJobs()
@@ -375,6 +388,7 @@ export class RunnerServer {
       }
 
       await this.cleanupTMP()
+      await this.ipcServer?.stop()
     } catch (err) {
       logger.error(err)
       process.exit(-1)

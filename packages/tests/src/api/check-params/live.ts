@@ -22,7 +22,7 @@ import {
   setAccessTokensToServers,
   stopFfmpeg
 } from '@peertube/peertube-server-commands'
-import { checkBadSortPagination } from '@tests/shared/checks.js'
+import { checkBadSort } from '@tests/shared/checks.js'
 import { expect } from 'chai'
 
 describe('Test video lives API validator', function () {
@@ -449,7 +449,7 @@ describe('Test video lives API validator', function () {
 
   describe('When getting live sessions', function () {
     it('Should fail with an incorrect sort', async function () {
-      await checkBadSortPagination(server.url, path, server.accessToken)
+      await checkBadSort(server.url, path, server.accessToken)
     })
 
     it('Should fail with a bad access token', async function () {
@@ -603,6 +603,7 @@ describe('Test video lives API validator', function () {
       await command.update({ videoId: video.id, fields: { permanentLive: false }, expectedStatus: HttpStatusCode.BAD_REQUEST_400 })
 
       await stopFfmpeg(ffmpegCommand)
+      await command.waitUntilWaiting({ videoId: video.id })
     })
 
     it('Should fail to change live privacy if it has already started', async function () {
@@ -626,6 +627,7 @@ describe('Test video lives API validator', function () {
       })
 
       await stopFfmpeg(ffmpegCommand)
+      await command.waitUntilWaiting({ videoId: video.id })
     })
 
     it('Should fail to stream twice in the save live', async function () {

@@ -96,7 +96,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userChanged.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -119,7 +119,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userDeleted.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -131,7 +131,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userChanged.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -142,7 +142,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.notifier.success($localize`Verification email sent to ${user.email}`)
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -156,7 +156,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userChanged.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -170,7 +170,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userChanged.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -184,7 +184,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userChanged.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -198,7 +198,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userChanged.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -212,7 +212,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userChanged.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -226,7 +226,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userChanged.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -240,7 +240,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userChanged.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -254,7 +254,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.userChanged.emit()
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -269,7 +269,7 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
           this.notifier.success($localize`Will remove comments of this account (may take several minutes).`)
         },
 
-        error: err => this.notifier.error(err.message)
+        error: err => this.notifier.handleError(err)
       })
   }
 
@@ -278,11 +278,11 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
   }
 
   private isMyUser (user: User) {
-    return user && this.authService.getUser().id === user.id
+    return this.authService.getUser().id === user?.id
   }
 
   private isMyAccount (account: AccountMutedStatus) {
-    return account && this.authService.getUser().account.id === account.id
+    return this.authService.getUser().account.id === account?.id
   }
 
   private async buildActions () {
@@ -355,12 +355,14 @@ export class UserModerationDropdownComponent implements OnInit, OnChanges {
     const displayOptions = this.displayOptions()
 
     const hasManageRight = this.user() && displayOptions.instanceUser && authUser.hasRight(UserRight.MANAGE_USERS) &&
-      authUser.canManage(this.user())
+      authUser.canManageUser(this.user())
 
     const hasAccountBlocklistRight = this.account() && displayOptions.instanceAccount &&
       authUser.hasRight(UserRight.MANAGE_ACCOUNTS_BLOCKLIST)
-    const hasServerBlocklistRight = displayOptions.instanceAccount && authUser.hasRight(UserRight.MANAGE_SERVERS_BLOCKLIST)
-    const hasBulkRemoveCommentsRight = displayOptions.instanceAccount && authUser.hasRight(UserRight.MANAGE_ANY_VIDEO_COMMENT)
+    const hasServerBlocklistRight = this.account() && displayOptions.instanceAccount &&
+      authUser.hasRight(UserRight.MANAGE_SERVERS_BLOCKLIST)
+    const hasBulkRemoveCommentsRight = this.account() && displayOptions.instanceAccount &&
+      authUser.hasRight(UserRight.MANAGE_ANY_VIDEO_COMMENT)
 
     if (hasManageRight) {
       instanceActions.push([
