@@ -10,7 +10,7 @@ After=peertube-postfix.service
 
 [Container]
 ContainerName=peertube-server
-Image=docker.io/chocobozzz/peertube:v8.1.4
+Image=docker.io/chocobozzz/peertube:v8.1.8
 AutoUpdate=registry
 Pod=peertube.pod
 
