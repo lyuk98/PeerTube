@@ -7,6 +7,7 @@ import {
   UserAdminFlag,
   UserRightType,
   UserRole,
+  VideoChannelCollaboratorState,
   VideoPlaylistType,
   type NSFWPolicyType,
   type UserAdminFlagType,
@@ -74,6 +75,7 @@ import { ActorFollowModel } from '../actor/actor-follow.js'
 import { ActorModel } from '../actor/actor.js'
 import { OAuthTokenModel } from '../oauth/oauth-token.js'
 import { buildSQLAttributes, getAdminUsersSort, parseAggregateResult, SequelizeModel, throwIfNotValid } from '../shared/index.js'
+import { VideoChannelCollaboratorModel } from '../video/video-channel-collaborator.js'
 import { VideoChannelModel } from '../video/video-channel.js'
 import { VideoImportModel } from '../video/video-import.js'
 import { VideoLiveModel } from '../video/video-live.js'
@@ -522,8 +524,9 @@ export class UserModel extends SequelizeModel<UserModel> {
     sort: string
     search?: string
     blocked?: boolean
+    role?: UserRoleType
   }) {
-    const { start, count, sort, search, blocked } = parameters
+    const { start, count, sort, search, blocked, role } = parameters
     const where: WhereOptions = {}
 
     if (search) {
@@ -545,6 +548,10 @@ export class UserModel extends SequelizeModel<UserModel> {
 
     if (blocked !== undefined) {
       Object.assign(where, { blocked })
+    }
+
+    if (role !== undefined) {
+      Object.assign(where, { role })
     }
 
     const query: FindOptions = {
@@ -611,6 +618,48 @@ export class UserModel extends SequelizeModel<UserModel> {
           ]
         }
       ]
+    }
+
+    return UserModel.unscoped().findAll(query)
+  }
+
+  static listOwnerAndAcceptedCollaboratorsOfChannel (channelId: number): Promise<MUserWithNotificationSetting[]> {
+    const query = {
+      include: [
+        {
+          model: UserNotificationSettingModel.unscoped(),
+          required: true
+        },
+        {
+          model: AccountModel.unscoped(),
+          required: true,
+          include: [
+            {
+              model: VideoChannelModel.unscoped(),
+              required: false,
+              attributes: [ 'id' ],
+              where: {
+                id: channelId
+              }
+            },
+            {
+              model: VideoChannelCollaboratorModel.unscoped(),
+              required: false,
+              attributes: [ 'id' ],
+              where: {
+                channelId,
+                state: VideoChannelCollaboratorState.ACCEPTED
+              }
+            }
+          ]
+        }
+      ],
+      where: {
+        [Op.or]: [
+          { '$Account.VideoChannels.id$': { [Op.ne]: null } },
+          { '$Account.VideoChannelCollaborators.id$': { [Op.ne]: null } }
+        ]
+      }
     }
 
     return UserModel.unscoped().findAll(query)

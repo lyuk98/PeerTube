@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/no-floating-promises */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/no-floating-promises */
 
 import { uuidRegex } from '@peertube/peertube-core-utils'
 import { ffprobePromise } from '@peertube/peertube-ffmpeg'
@@ -360,7 +360,7 @@ export async function saveVideoInServers (servers: PeerTubeServer[], uuid: strin
 export function checkUploadVideoParam (options: {
   server: PeerTubeServer
   token: string
-  attributes: Partial<VideoEdit>
+  attributes: Partial<VideoEdit> & { filename?: string }
   expectedStatus?: HttpStatusCodeType
   completedExpectedStatus?: HttpStatusCodeType
   mode?: 'legacy' | 'resumable'
@@ -448,6 +448,7 @@ export async function checkThumbnails (options: {
   server: PeerTubeServer
   video?: Video
   playlist?: VideoPlaylist
+  remotePlaylist?: boolean
   thumbnails: string[]
 }) {
   const { server, video, playlist } = options
@@ -474,46 +475,44 @@ export async function checkThumbnails (options: {
     aspectRatio: t.aspectRatio
   }))
 
-  if (video) {
+  if (options.remotePlaylist !== true) {
     expect(toCheck).to.deep.include.members([
-      { width: 1400, height: 1400, aspectRatio: '1:1' },
       { width: 280, height: 157, aspectRatio: '16:9' },
       { width: 850, height: 480, aspectRatio: '16:9' },
       { width: 1280, height: 720, aspectRatio: '16:9' },
-      { width: 1920, height: 1080, aspectRatio: '16:9' }
+      { width: 1920, height: 1080, aspectRatio: '16:9' },
+      { width: 1400, height: 1400, aspectRatio: '1:1' }
     ])
 
     expect(toCheck).to.have.lengthOf(5)
-  } else if (playlist) {
-    expect(toCheck).to.deep.include.members([
+  } else {
+    expect(toCheck).to.deep.equal([
       { width: 280, height: 157, aspectRatio: '16:9' }
     ])
-
-    expect(toCheck).to.have.lengthOf(1)
   }
 
   for (const thumbnail of thumbnails) {
-    const videoThumbnail = entity.thumbnails.find(t => t.width === thumbnail.width && t.height === thumbnail.height)
+    const entityThumbnail = entity.thumbnails.find(t => t.width === thumbnail.width && t.height === thumbnail.height)
 
-    expectStartWith(videoThumbnail.fileUrl, server.url)
+    expectStartWith(entityThumbnail.fileUrl, server.url)
 
-    await testImageGeneratedByFFmpeg({ name: thumbnail.filename, url: videoThumbnail.fileUrl })
+    await testImageGeneratedByFFmpeg({ name: thumbnail.filename, url: entityThumbnail.fileUrl })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  // oxlint-disable-next-line @typescript-eslint/no-deprecated
   await testImageGeneratedByFFmpeg({
     name: thumbnails.find(t => t.width === 280 && t.height === 157).filename,
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    // oxlint-disable-next-line @typescript-eslint/no-deprecated
     url: server.url + entity.thumbnailPath
   })
 
   const preview = thumbnails.find(t => t.width === 1920 && t.height === 1080)
 
   if (video && preview) {
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    // oxlint-disable-next-line @typescript-eslint/no-deprecated
     await testImageGeneratedByFFmpeg({
       name: preview.filename,
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      // oxlint-disable-next-line @typescript-eslint/no-deprecated
       url: server.url + video.previewPath
     })
   }

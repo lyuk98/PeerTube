@@ -22,20 +22,19 @@ import { getDirectAudience, getVideoAudience } from '../../audience.js'
 
 async function sendVideoRelatedActivity (activityBuilder: (audience: ActivityAudience) => Activity, options: {
   byActor: MActorLight
-  video: MVideoImmutable | MVideoAccountLight
+  video: MVideoAccountLight
   contextType: ContextType
   parallelizable?: boolean
   transaction?: Transaction
   skipPrivacyCheck?: boolean
 }) {
-  const { byActor, transaction, contextType, parallelizable, skipPrivacyCheck } = options
+  const { byActor, transaction, contextType, parallelizable, video, skipPrivacyCheck } = options
 
   // Send to origin
-  if (options.video.isLocal() === false) {
+  if (video.isLocal() === false) {
     return sendVideoRelatedActivityToOrigin(activityBuilder, options)
   }
 
-  const video = await VideoModel.loadByUrlAndPopulateAccount(options.video.url, transaction)
   const actorsInvolvedInVideo = await getActorsInvolvedInVideo(video, transaction)
 
   const audience = getVideoAudience({
@@ -95,8 +94,9 @@ async function forwardVideoRelatedActivity (options: {
   transaction: Transaction
   followersException: MActorWithInboxes[]
   video: MVideoId
+  parallelizable?: boolean
 }) {
-  const { activity, transaction, followersException, video } = options
+  const { activity, transaction, followersException, parallelizable, video } = options
 
   // Mastodon does not add our announces in audience, so we forward to them manually
   const additionalActors = await getActorsInvolvedInVideo(video, transaction)
@@ -122,7 +122,14 @@ async function forwardVideoRelatedActivity (options: {
     contextType: null
   }
 
-  return afterCommitIfTransaction(transaction, () => JobQueue.Instance.createJobAsync({ type: 'activitypub-http-broadcast', payload }))
+  return afterCommitIfTransaction(transaction, () => {
+    JobQueue.Instance.createJobAsync({
+      type: parallelizable
+        ? 'activitypub-http-broadcast-parallel'
+        : 'activitypub-http-broadcast',
+      payload
+    })
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +197,7 @@ function broadcastTo (options: {
 
   // Bad URIs could be slow to respond, prefer to process them in a dedicated queue
   for (const uri of uris) {
-    if (ActorFollowHealthCache.Instance.isBadInbox(uri)) {
+    if (ActorFollowHealthCache.Instance.isLastBadInbox(uri)) {
       unicastUris.push(uri)
     } else {
       broadcastUris.push(uri)

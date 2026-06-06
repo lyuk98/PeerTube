@@ -69,6 +69,8 @@ export interface Video extends Partial<VideoAdditionalAttributes> {
   views: number
   viewers: number
 
+  downloads: number
+
   likes: number
   dislikes: number
   comments: number
@@ -105,6 +107,7 @@ export interface VideoAdditionalAttributes {
   videoSource: VideoSource
 
   automaticTags: string[]
+  tags: string[]
 
   liveSchedules: LiveVideoScheduleEdit[]
 }
@@ -135,3 +138,19 @@ export interface VideoDetails extends Video {
 
   embedPrivacyPolicy: ConstantLabel<VideoEmbedPrivacyPolicyType>
 }
+
+export type VideoSummary =
+  & Pick<
+    Video,
+    | 'id'
+    | 'uuid'
+    | 'shortUUID'
+    | 'name'
+    | 'nsfw'
+    | 'publishedAt'
+    | 'isLive'
+    | 'thumbnails'
+  >
+  & {
+    channel: VideoChannelSummary
+  }

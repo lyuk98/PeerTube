@@ -29,7 +29,7 @@ import {
   MVideoCaptionLanguageUrl,
   MVideoChapter,
   MVideoFile,
-  MVideoFullLight,
+  MVideoFull,
   MVideoLiveWithSettingSchedules,
   MVideoPassword
 } from '@server/types/models/index.js'
@@ -43,6 +43,7 @@ import { PassThrough, Readable } from 'stream'
 import { AbstractUserExporter, ExportResult } from './abstract-user-exporter.js'
 
 export class VideosExporter extends AbstractUserExporter<VideoExportJSON> {
+  // oxlint-disable-next-line no-useless-constructor
   constructor (
     private readonly options: ConstructorParameters<typeof AbstractUserExporter<VideoExportJSON>>[0] & {
       withVideoFiles: boolean
@@ -128,7 +129,7 @@ export class VideosExporter extends AbstractUserExporter<VideoExportJSON> {
   // ---------------------------------------------------------------------------
 
   private exportVideoJSON (options: {
-    video: MVideoFullLight
+    video: MVideoFull
     captions: MVideoCaption[]
     live: MVideoLiveWithSettingSchedules
     passwords: MVideoPassword[]
@@ -221,6 +222,7 @@ export class VideosExporter extends AbstractUserExporter<VideoExportJSON> {
       saveReplay: live.saveReplay,
       permanentLive: live.permanentLive,
       latencyMode: live.latencyMode,
+      dvrWindow: live.dvrWindow,
       streamKey: live.streamKey,
 
       replaySettings: live.ReplaySetting
@@ -371,7 +373,7 @@ export class VideosExporter extends AbstractUserExporter<VideoExportJSON> {
   // ---------------------------------------------------------------------------
 
   private async exportVideoFiles (options: {
-    video: MVideoFullLight
+    video: MVideoFull
     captions: MVideoCaption[]
   }) {
     const { video, captions } = options
@@ -445,7 +447,7 @@ export class VideosExporter extends AbstractUserExporter<VideoExportJSON> {
   private async generateVideoFileReadStream (options: {
     videoFile: MVideoFile
     separatedAudioFile: MVideoFile
-    video: MVideoFullLight
+    video: MVideoFull
   }): Promise<Readable> {
     const { video, videoFile, separatedAudioFile } = options
 
@@ -482,7 +484,7 @@ export class VideosExporter extends AbstractUserExporter<VideoExportJSON> {
 
   // ---------------------------------------------------------------------------
 
-  private async getArchiveVideo (video: MVideoFullLight) {
+  private async getArchiveVideo (video: MVideoFull) {
     const source = await VideoSourceModel.loadLatest(video.id)
 
     const { videoFile, separatedAudioFile } = video.getMaxQualityAudioAndVideoFiles()

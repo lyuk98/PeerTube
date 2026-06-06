@@ -149,7 +149,7 @@ async function getUser (usernameOrEmail?: string, password?: string, options?: {
   }
 
   // If we don't find the user, or if the user belongs to a plugin
-  if (!user || user.pluginAuth !== null || !password) return null
+  if (user?.pluginAuth !== null || !password) return null
 
   if (isRootAuthDisabled(user)) return null
 
@@ -191,8 +191,11 @@ async function revokeToken (
 
     TokensCache.Instance.clearCacheByToken(token.accessToken)
 
-    token.destroy()
-      .catch(err => logger.error('Cannot destroy token when revoking token.', { err }))
+    try {
+      await token.destroy()
+    } catch (err) {
+      logger.error('Cannot destroy token when revoking token.', { err })
+    }
 
     return { success: true, redirectUrl }
   }

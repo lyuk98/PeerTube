@@ -10,7 +10,7 @@ import { VideoEmbedPrivacyService } from '@app/shared/shared-video/video-embed-p
 import { LiveVideoLatencyMode, PeerTubeProblemDocument, ServerErrorCode, UserVideoQuota, VideoPrivacyType } from '@peertube/peertube-models'
 import debug from 'debug'
 import { forkJoin, map, switchMap } from 'rxjs'
-import { SelectChannelItem } from 'src/types'
+import { SelectChannelItem } from '@pt-types'
 import { SelectChannelComponent } from '../../../shared/shared-forms/select/select-channel.component'
 import { GlobalIconComponent } from '../../../shared/shared-icons/global-icon.component'
 import { VideoManageContainerComponent } from '../../shared-manage/video-manage-container.component'
@@ -93,7 +93,8 @@ export class VideoGoLiveComponent implements OnInit, AfterViewInit, CanComponent
       support: this.userChannels().find(c => c.id === this.firstStepChannelId).support ?? '',
       permanentLive: this.firstStepPermanentLive,
       latencyMode: LiveVideoLatencyMode.DEFAULT,
-      saveReplay: this.isReplayAllowed(),
+      dvrWindow: serverConfig.live.dvr.maxWindow,
+      saveReplay: this.isReplayAllowed() && serverConfig.defaults.live.saveReplay,
       replaySettings: { privacy: this.highestPrivacy() },
       schedules: [],
       user: this.authService.getUser()

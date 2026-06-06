@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import { ActorImageType, CustomConfig, HttpStatusCode, LogoType, VideoCommentPolicy, VideoPrivacy } from '@peertube/peertube-models'
 import {
@@ -114,6 +114,7 @@ function checkInitialConfig (server: PeerTubeServer, data: CustomConfig) {
   expect(data.live.transcoding.resolutions['2160p']).to.be.false
   expect(data.live.transcoding.alwaysTranscodeOriginalResolution).to.be.true
   expect(data.live.transcoding.fps.max).to.equal(60)
+  expect(data.live.dvr.maxWindow).to.equal(3600)
 
   expect(data.videoStudio.enabled).to.be.false
   expect(data.videoStudio.remoteRunners.enabled).to.be.false
@@ -153,6 +154,7 @@ function checkInitialConfig (server: PeerTubeServer, data: CustomConfig) {
   expect(data.defaults.publish.downloadEnabled).to.be.true
   expect(data.defaults.publish.licence).to.be.null
   expect(data.defaults.publish.privacy).to.equal(VideoPrivacy.PUBLIC)
+  expect(data.defaults.live.saveReplay).to.be.false
   expect(data.defaults.p2p.embed.enabled).to.be.true
   expect(data.defaults.p2p.webapp.enabled).to.be.true
   expect(data.defaults.player.theme).to.equal('lucide')
@@ -339,6 +341,9 @@ function buildNewCustomConfig (server: PeerTubeServer): CustomConfig {
         fps: {
           max: 144
         }
+      },
+      dvr: {
+        maxWindow: 0
       }
     },
     videoStudio: {
@@ -424,7 +429,7 @@ function buildNewCustomConfig (server: PeerTubeServer): CustomConfig {
       },
       searchIndex: {
         enabled: true,
-        url: 'https://search.joinpeertube.org',
+        url: 'https://sepiasearch.org',
         disableLocalSearch: true,
         isDefaultSearch: true
       }
@@ -448,6 +453,9 @@ function buildNewCustomConfig (server: PeerTubeServer): CustomConfig {
         downloadEnabled: false,
         licence: 2,
         privacy: VideoPrivacy.INTERNAL
+      },
+      live: {
+        saveReplay: true
       },
       p2p: {
         embed: {

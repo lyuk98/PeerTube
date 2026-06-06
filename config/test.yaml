@@ -169,7 +169,7 @@ open_telemetry:
 
 search:
   search_index:
-    url: 'https://search.joinpeertube.org/'
+    url: 'https://sepiasearch.org/'
 
 video_transcription:
   model: 'tiny'
@@ -177,3 +177,7 @@ video_transcription:
 user:
   password_constraints:
     min_length: 6
+
+defaults:
+  live:
+    save_replay: false

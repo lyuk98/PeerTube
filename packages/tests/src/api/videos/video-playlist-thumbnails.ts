@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import { VideoPlaylistPrivacy } from '@peertube/peertube-models'
 import {
@@ -62,8 +62,6 @@ describe('Playlist thumbnail', function () {
   })
 
   it('Should automatically update the thumbnail when adding an element', async function () {
-    this.timeout(30000)
-
     const created = await servers[1].playlists.create({
       attributes: {
         displayName: 'playlist without thumbnail',
@@ -84,7 +82,12 @@ describe('Playlist thumbnail', function () {
     for (const server of servers) {
       const p = await getPlaylistWithoutThumbnail(server)
 
-      await checkThumbnails({ server, playlist: p, thumbnails: [ 'thumbnail-playlist-280x157.jpg' ] })
+      await checkThumbnails({
+        server,
+        playlist: p,
+        thumbnails: [ 'thumbnail-playlist-280x157.jpg' ],
+        remotePlaylist: server !== servers[1]
+      })
     }
   })
 
@@ -112,7 +115,12 @@ describe('Playlist thumbnail', function () {
     for (const server of servers) {
       const p = await getPlaylistWithThumbnail(server)
 
-      await checkThumbnails({ server, playlist: p, thumbnails: [ 'custom-thumbnail-280x157.jpg' ] })
+      await checkThumbnails({
+        server,
+        playlist: p,
+        thumbnails: [ 'custom-thumbnail-280x157.jpg' ],
+        remotePlaylist: server !== servers[1]
+      })
     }
   })
 
@@ -138,7 +146,12 @@ describe('Playlist thumbnail', function () {
     for (const server of servers) {
       const p = await getPlaylistWithoutThumbnail(server)
 
-      await checkThumbnails({ server, playlist: p, thumbnails: [ 'thumbnail-playlist-280x157.jpg' ] })
+      await checkThumbnails({
+        server,
+        playlist: p,
+        thumbnails: [ 'thumbnail-playlist-280x157.jpg' ],
+        remotePlaylist: server !== servers[1]
+      })
     }
   })
 
@@ -164,7 +177,12 @@ describe('Playlist thumbnail', function () {
     for (const server of servers) {
       const p = await getPlaylistWithThumbnail(server)
 
-      await checkThumbnails({ server, playlist: p, thumbnails: [ 'custom-thumbnail-280x157.jpg' ] })
+      await checkThumbnails({
+        server,
+        playlist: p,
+        thumbnails: [ 'custom-thumbnail-280x157.jpg' ],
+        remotePlaylist: server !== servers[1]
+      })
     }
   })
 
@@ -181,7 +199,12 @@ describe('Playlist thumbnail', function () {
     for (const server of servers) {
       const p = await getPlaylistWithoutThumbnail(server)
 
-      await checkThumbnails({ server, playlist: p, thumbnails: [ 'thumbnail-playlist-280x157.jpg' ] })
+      await checkThumbnails({
+        server,
+        playlist: p,
+        thumbnails: [ 'thumbnail-playlist-280x157.jpg' ],
+        remotePlaylist: server !== servers[1]
+      })
     }
   })
 
@@ -198,7 +221,12 @@ describe('Playlist thumbnail', function () {
     for (const server of servers) {
       const p = await getPlaylistWithThumbnail(server)
 
-      await checkThumbnails({ server, playlist: p, thumbnails: [ 'custom-thumbnail-280x157.jpg' ] })
+      await checkThumbnails({
+        server,
+        playlist: p,
+        thumbnails: [ 'custom-thumbnail-280x157.jpg' ],
+        remotePlaylist: server !== servers[1]
+      })
     }
   })
 
@@ -214,7 +242,7 @@ describe('Playlist thumbnail', function () {
 
     for (const server of servers) {
       const p = await getPlaylistWithoutThumbnail(server)
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      // oxlint-disable-next-line @typescript-eslint/no-deprecated
       expect(p.thumbnailPath).to.be.null
       expect(p.thumbnails).to.have.lengthOf(0)
     }
@@ -233,7 +261,12 @@ describe('Playlist thumbnail', function () {
     for (const server of servers) {
       const p = await getPlaylistWithThumbnail(server)
 
-      await checkThumbnails({ server, playlist: p, thumbnails: [ 'custom-thumbnail-280x157.jpg' ] })
+      await checkThumbnails({
+        server,
+        playlist: p,
+        thumbnails: [ 'custom-thumbnail-280x157.jpg' ],
+        remotePlaylist: server !== servers[1]
+      })
     }
   })
 

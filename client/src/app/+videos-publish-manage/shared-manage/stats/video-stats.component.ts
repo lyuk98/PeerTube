@@ -21,7 +21,7 @@ import { ChartConfiguration, ChartData, defaults as ChartJSDefaults, ChartOption
 import zoomPlugin from 'chartjs-plugin-zoom'
 import { ChartModule } from 'primeng/chart'
 import { Observable, of } from 'rxjs'
-import { SelectOptionsItem } from 'src/types'
+import { SelectOptionsItem } from '@pt-types'
 import { SelectOptionsComponent } from '../../../shared/shared-forms/select/select-options.component'
 import { ButtonComponent } from '../../../shared/shared-main/buttons/button.component'
 import { HelpComponent } from '../../../shared/shared-main/buttons/help.component'
@@ -37,6 +37,19 @@ type ActiveGraphId = VideoStatsTimeserieMetric | 'retention' | BarGraphs
 type GeoData = { name: string, viewers: number }[]
 
 type ChartIngestData = VideoStatsTimeserie | VideoStatsRetention | GeoData | VideoStatsUserAgent
+
+type GraphDataById = {
+  clients: VideoStatsUserAgent
+  devices: VideoStatsUserAgent
+  operatingSystems: VideoStatsUserAgent
+  retention: VideoStatsRetention
+  aggregateWatchTime: VideoStatsTimeserie
+  viewers: VideoStatsTimeserie
+  downloads: VideoStatsTimeserie
+  countries: GeoData
+  regions: GeoData
+}
+
 type ChartBuilderResult = {
   type: 'line' | 'bar'
 
@@ -129,6 +142,11 @@ export class VideoStatsComponent implements OnInit {
       {
         id: 'aggregateWatchTime',
         label: $localize`Watch time`,
+        zoomEnabled: true
+      },
+      {
+        id: 'downloads',
+        label: $localize`Downloads`,
         zoomEnabled: true
       },
       {
@@ -242,7 +260,7 @@ export class VideoStatsComponent implements OnInit {
   }
 
   private isTimeserieGraph (graphId: ActiveGraphId) {
-    return graphId === 'aggregateWatchTime' || graphId === 'viewers'
+    return graphId === 'aggregateWatchTime' || graphId === 'viewers' || graphId === 'downloads'
   }
 
   private loadOverallStats () {
@@ -335,6 +353,10 @@ export class VideoStatsComponent implements OnInit {
         help: $localize`A view means that someone watched the video for several seconds (10 seconds by default)`
       },
       {
+        label: $localize`Downloads`,
+        value: this.numberFormatter.transform(this.videoEdit.getVideoAttributes().downloads)
+      },
+      {
         label: $localize`Likes`,
         value: this.numberFormatter.transform(this.videoEdit.getVideoAttributes().likes)
       }
@@ -399,6 +421,12 @@ export class VideoStatsComponent implements OnInit {
         endDate: this.statsEndDate,
         metric: 'viewers'
       }),
+      downloads: this.statsService.getTimeserieStats({
+        videoId,
+        startDate: this.statsStartDate,
+        endDate: this.statsEndDate,
+        metric: 'downloads'
+      }),
 
       countries: of(this.countries),
 
@@ -416,21 +444,21 @@ export class VideoStatsComponent implements OnInit {
     })
   }
 
-  private buildChartOptions (graphId: ActiveGraphId): ChartConfiguration<'line' | 'bar'> {
-    const dataBuilders: {
-      [id in ActiveGraphId]: (rawData: ChartIngestData) => ChartBuilderResult
-    } = {
+  private buildChartOptions<K extends ActiveGraphId> (graphId: K): ChartConfiguration<'line' | 'bar'> {
+    const dataBuilders: { [P in ActiveGraphId]: (rawData: GraphDataById[P]) => ChartBuilderResult } = {
       clients: (rawData: VideoStatsUserAgent) => this.buildUserAgentChartOptions(rawData, 'clients'),
       devices: (rawData: VideoStatsUserAgent) => this.buildUserAgentChartOptions(rawData, 'devices'),
       operatingSystems: (rawData: VideoStatsUserAgent) => this.buildUserAgentChartOptions(rawData, 'operatingSystems'),
       retention: (rawData: VideoStatsRetention) => this.buildRetentionChartOptions(rawData),
       aggregateWatchTime: (rawData: VideoStatsTimeserie) => this.buildTimeserieChartOptions(rawData),
       viewers: (rawData: VideoStatsTimeserie) => this.buildTimeserieChartOptions(rawData),
+      downloads: (rawData: VideoStatsTimeserie) => this.buildTimeserieChartOptions(rawData),
       countries: (rawData: GeoData) => this.buildGeoChartOptions(rawData),
       regions: (rawData: GeoData) => this.buildGeoChartOptions(rawData)
     }
 
-    const { type, data, displayLegend, plugins, options } = dataBuilders[graphId](this.chartIngestData[graphId])
+    const rawData = this.chartIngestData[graphId] as GraphDataById[K]
+    const { type, data, displayLegend, plugins, options } = dataBuilders[graphId](rawData)
 
     const self = this
 
@@ -500,7 +528,7 @@ export class VideoStatsComponent implements OnInit {
     }
 
     return {
-      type: 'line' as 'line',
+      type: 'line',
 
       displayLegend: false,
 
@@ -530,7 +558,7 @@ export class VideoStatsComponent implements OnInit {
     }
 
     return {
-      type: 'line' as 'line',
+      type: 'line',
 
       displayLegend: false,
 
@@ -590,7 +618,7 @@ export class VideoStatsComponent implements OnInit {
     }
 
     return {
-      type: 'bar' as 'bar',
+      type: 'bar',
 
       options: {
         indexAxis: 'y'
@@ -626,7 +654,7 @@ export class VideoStatsComponent implements OnInit {
     }
 
     return {
-      type: 'bar' as 'bar',
+      type: 'bar',
 
       options: {
         indexAxis: 'y'

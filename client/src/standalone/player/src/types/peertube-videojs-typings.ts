@@ -3,22 +3,22 @@ import type { HlsConfig, Level, Loader, LoaderContext } from 'hls.js'
 import type { CoreConfig } from 'p2p-media-loader-core'
 import type { HlsJsP2PEngine } from 'p2p-media-loader-hlsjs'
 import videojs from 'video.js'
-import BigPlayButton from 'video.js/dist/types/big-play-button'
-import Button from 'video.js/dist/types/button'
-import ClickableComponent from 'video.js/dist/types/clickable-component'
-import Component from 'video.js/dist/types/component'
-import ControlBar from 'video.js/dist/types/control-bar/control-bar'
-import MouseTimeDisplay from 'video.js/dist/types/control-bar/progress-control/mouse-time-display'
-import ProgressControl from 'video.js/dist/types/control-bar/progress-control/progress-control'
-import SeekBar from 'video.js/dist/types/control-bar/progress-control/seek-bar'
-import TimeTooltip from 'video.js/dist/types/control-bar/progress-control/time-tooltip'
+import type BigPlayButton from 'video.js/dist/types/big-play-button'
+import type Button from 'video.js/dist/types/button'
+import type ClickableComponent from 'video.js/dist/types/clickable-component'
+import type Component from 'video.js/dist/types/component'
+import type ControlBar from 'video.js/dist/types/control-bar/control-bar'
+import type MouseTimeDisplay from 'video.js/dist/types/control-bar/progress-control/mouse-time-display'
+import type ProgressControl from 'video.js/dist/types/control-bar/progress-control/progress-control'
+import type SeekBar from 'video.js/dist/types/control-bar/progress-control/seek-bar'
+import type TimeTooltip from 'video.js/dist/types/control-bar/progress-control/time-tooltip'
 import type CaptionButton from 'video.js/dist/types/control-bar/text-track-controls/captions-button'
-import LoadingSpinner from 'video.js/dist/types/loading-spinner'
-import Menu from 'video.js/dist/types/menu/menu'
-import MenuButton from 'video.js/dist/types/menu/menu-button'
-import MenuItem from 'video.js/dist/types/menu/menu-item'
+import type LoadingSpinner from 'video.js/dist/types/loading-spinner'
+import type Menu from 'video.js/dist/types/menu/menu'
+import type MenuButton from 'video.js/dist/types/menu/menu-button'
+import type MenuItem from 'video.js/dist/types/menu/menu-item'
 import type Plugin from 'video.js/dist/types/plugin'
-import Tech from 'video.js/dist/types/tech/tech'
+import type Tech from 'video.js/dist/types/tech/tech'
 import { BezelsPlugin } from '../shared/bezels/bezels-plugin'
 import { ContextMenuPlugin } from '../shared/context-menu'
 import { ChaptersPlugin } from '../shared/control-bar/chapters-plugin'
@@ -39,6 +39,7 @@ import { StatsCardOptions } from '../shared/stats/stats-card'
 import { StatsForNerdsPlugin } from '../shared/stats/stats-plugin'
 import { UpNextPlugin } from '../shared/upnext/upnext-plugin'
 import { WebVideoPlugin } from '../shared/web-video/web-video-plugin'
+import { VideoFlipHorizontallyPlugin } from '../shared/video-filter/video-flip-horizontally-plugin'
 
 declare module 'video.js' {
   export interface VideoJsPlayer {
@@ -94,6 +95,8 @@ export type PeerTubePluginOptions = {
     cssPlayerPortraitModeVariable: string
   }
 
+  playbackRate: number
+
   hasAutoplay: () => VideojsAutoplay
 
   videoViewUrl: () => string
@@ -108,6 +111,7 @@ export type PeerTubePluginOptions = {
 
   videoCaptions: () => VideoJSCaption[]
   isLive: () => boolean
+  liveDvrEnabled: () => boolean
   videoUUID: () => string
   subtitle: () => string
 
@@ -197,7 +201,14 @@ export type HLSLoaderClass = {
 
   getEngine(): HlsJsP2PEngine
 }
-export type HLSPluginOptions = Partial<HlsConfig & { cueHandler: any, p2pMediaLoaderOptions: CoreConfig }>
+export type HLSPluginOptions = Partial<
+  HlsConfig & {
+    cueHandler: any
+    p2pMediaLoaderOptions: CoreConfig
+    liveDvrEnabled?: boolean
+    durationPlaceholder?: number
+  }
+>
 
 export type P2PMediaLoaderPluginOptions = {
   redundancyUrlManager: RedundancyUrlManager | null
@@ -353,6 +364,8 @@ export type VideojsPlayer = ReturnType<typeof videojs.getPlayer> & {
   upnext(options?: UpNextPluginOptions): UpNextPlugin
 
   playlist(options?: PlaylistPluginOptions): PlaylistPlugin
+
+  videoFlipHorizontallyPlugin(): VideoFlipHorizontallyPlugin
 
   // ---------------------------------------------------------------------------
 

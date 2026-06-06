@@ -99,7 +99,10 @@ const playerKeys = {
   'Download speed:': 'Download speed:',
   'Uploader note:': 'Uploader note:',
   'Close': 'Close',
-  '(skipped {1} buffers) ': '(skipped {1} buffers) '
+  '(skipped {1} buffers) ': '(skipped {1} buffers) ',
+  'Video Filter': 'Video Filter',
+  'Mirror Video': 'Mirror Video',
+  'Mirror': 'Mirror'
 }
 Object.assign(playerKeys, videojs)
 
@@ -139,7 +142,7 @@ Object.values(VIDEO_CATEGORIES)
 
 // ISO 639 keys
 const languageKeys: any = {}
-const languages = buildLanguages()
+const { allLanguages: languages } = await buildLanguages()
 Object.keys(languages).forEach(k => {
   languageKeys[languages[k]] = languages[k]
 })

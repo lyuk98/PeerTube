@@ -120,6 +120,7 @@ export function checkMissedConfig () {
     'import.videos.timeout',
     'import.videos.http.force_ipv4',
     'import.videos.http.proxies',
+    'import.videos.http.cookies.enabled',
     'import.video_channel_synchronization.enabled',
     'import.video_channel_synchronization.max_per_user',
     'import.video_channel_synchronization.check_interval',
@@ -260,9 +261,12 @@ export function checkMissedConfig () {
     'live.transcoding.always_transcode_original_resolution',
     'live.transcoding.fps.max',
     'live.transcoding.remote_runners.enabled',
+    'live.dvr.max_window',
     'storyboards.enabled',
     'webrtc.stun_servers',
     'nsfw_flags_settings.enabled',
+    'download.max_total_bytes_per_second',
+    'download.max_bytes_per_ip_per_second',
     'download_generate_video.max_parallel_downloads',
     'video_comments.accept_remote_comments'
   ]
@@ -328,15 +332,11 @@ export function checkNodeVersion () {
 
   logger.debug(`Checking NodeJS version ${v}`)
 
-  if (major < 20) {
-    throw new Error(`Your NodeJS version ${v} is not supported. Please upgrade.`)
-  }
-
-  if (major === 20 && minor < 19) {
-    throw new Error(`NodeJS v20.19 and above is required`)
+  if (major < 22) {
+    throw new Error(`Your NodeJS version ${v} is not supported. Please upgrade to NodeJS 22 or NodeJS 24`)
   }
 
   if (major === 22 && minor < 12) {
-    throw new Error(`NodeJS v22.12 and above is required`)
+    throw new Error(`NodeJS >= v22.12 or NodeJS 24 is required`)
   }
 }

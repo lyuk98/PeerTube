@@ -4,6 +4,7 @@ import { AbstractVideoQueryBuilder } from './shared/abstract-video-query-builder
 import { VideoFileQueryBuilder } from './shared/video-file-query-builder.js'
 import { VideoModelBuilder } from './shared/video-model-builder.js'
 import { VideoTableAttributes } from './shared/video-table-attributes.js'
+import { TableAttributeOptions } from './shared/table-attributes-options.model.js'
 
 /**
  * Build a GET SQL query, fetch rows and create the video model
@@ -12,13 +13,14 @@ import { VideoTableAttributes } from './shared/video-table-attributes.js'
 export type GetType =
   | 'api'
   | 'full'
+  | 'account-blacklist'
   | 'account-blacklist-files'
   | 'account'
   | 'all-files'
   | 'thumbnails'
-  | 'thumbnails-blacklist'
+  | 'blacklist'
   | 'id'
-  | 'blacklist-rights'
+  | 'video'
   | 'seo'
 
 const videoFilesInclude = new Set<GetType>([ 'api', 'full', 'account-blacklist-files', 'all-files' ])
@@ -29,15 +31,14 @@ const liveInclude = new Set<GetType>([ 'api', 'full' ])
 const scheduleUpdateInclude = new Set<GetType>([ 'api', 'full' ])
 const tagsInclude = new Set<GetType>([ 'api', 'full', 'seo' ])
 const userHistoryInclude = new Set<GetType>([ 'api', 'full' ])
-const accountInclude = new Set<GetType>([ 'api', 'full', 'account', 'account-blacklist-files', 'seo' ])
-const ownerUserInclude = new Set<GetType>([ 'blacklist-rights' ])
+const accountInclude = new Set<GetType>([ 'api', 'full', 'account', 'account-blacklist', 'account-blacklist-files', 'seo' ])
 
 const blacklistedInclude = new Set<GetType>([
   'api',
   'full',
+  'account-blacklist',
   'account-blacklist-files',
-  'thumbnails-blacklist',
-  'blacklist-rights',
+  'blacklist',
   'seo'
 ])
 
@@ -47,7 +48,6 @@ const thumbnailsInclude = new Set<GetType>([
   'account-blacklist-files',
   'all-files',
   'thumbnails',
-  'thumbnails-blacklist',
   'seo'
 ])
 
@@ -61,6 +61,8 @@ export type BuildVideoGetQueryOptions = {
   transaction?: Transaction
 
   logging?: boolean
+
+  tableAttributes?: TableAttributeOptions
 }
 
 export class VideoModelGetQueryBuilder {
@@ -80,7 +82,7 @@ export class VideoModelGetQueryBuilder {
 
   async queryVideo (options: BuildVideoGetQueryOptions) {
     const fileQueryOptions = {
-      ...pick(options, [ 'id', 'url', 'transaction', 'logging' ]),
+      ...pick(options, [ 'id', 'url', 'transaction', 'logging', 'tableAttributes' ]),
 
       includeRedundancy: this.shouldIncludeRedundancies(options)
     }
@@ -138,7 +140,7 @@ export class VideosModelGetQuerySubBuilder extends AbstractVideoQueryBuilder {
     }
 
     if (thumbnailsInclude.has(options.type)) {
-      this.includeThumbnails()
+      this.includeThumbnailsJSON()
     }
 
     if (blacklistedInclude.has(options.type)) {
@@ -165,10 +167,6 @@ export class VideosModelGetQuerySubBuilder extends AbstractVideoQueryBuilder {
 
     if (options.userId && userHistoryInclude.has(options.type)) {
       this.includeUserHistory(options.userId)
-    }
-
-    if (ownerUserInclude.has(options.type)) {
-      this.includeOwnerUser()
     }
 
     if (trackersInclude.has(options.type)) {

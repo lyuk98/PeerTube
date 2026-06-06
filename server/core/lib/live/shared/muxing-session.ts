@@ -33,7 +33,7 @@ import {
 import { isUserQuotaValid } from '../../user.js'
 import { LiveQuotaStore } from '../live-quota-store.js'
 import { LiveSegmentShaStore } from '../live-segment-sha-store.js'
-import { buildConcatenatedName, getLiveSegmentTime } from '../live-utils.js'
+import { buildConcatenatedName, getLiveSegmentListSize, getLiveSegmentTime } from '../live-utils.js'
 import { AbstractTranscodingWrapper, FFmpegTranscodingWrapper, RemoteTranscodingWrapper } from './transcoding-wrapper/index.js'
 
 interface MuxingSessionEvents {
@@ -49,7 +49,7 @@ interface MuxingSessionEvents {
   'after-cleanup': (options: { videoUUID: string }) => void
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+// oxlint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 declare interface MuxingSession {
   on<U extends keyof MuxingSessionEvents>(
     event: U,
@@ -62,7 +62,7 @@ declare interface MuxingSession {
   ): boolean
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+// oxlint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 class MuxingSession extends EventEmitter implements MuxingSession {
   private transcodingWrapper: AbstractTranscodingWrapper
 
@@ -187,7 +187,11 @@ class MuxingSession extends EventEmitter implements MuxingSession {
 
     await this.transcodingWrapper.run()
 
-    this.filesWatcher = watch(this.outDirectory, { depth: 0 })
+    this.filesWatcher = watch(this.outDirectory, {
+      // Ignore 'segments-sha256.json' and 'segments-sha256.json.tmp' files that are frequently updated and not useful
+      ignored: path => path.endsWith('.json') || path.endsWith('json.tmp'),
+      depth: 0
+    })
 
     this.watchMasterFile()
     this.watchTSFiles()
@@ -234,7 +238,12 @@ class MuxingSession extends EventEmitter implements MuxingSession {
           )
         }
 
-        this.streamingPlaylist.assignP2PMediaLoaderInfoHashes(this.videoLive.Video, this.allResolutions.map(r => ({ height: r })))
+        const hlsStreams = [ ...this.allResolutions ]
+        if (this.hasAudio && this.hasVideo && !hlsStreams.includes(VideoResolution.H_NOVIDEO)) {
+          hlsStreams.push(VideoResolution.H_NOVIDEO)
+        }
+
+        this.streamingPlaylist.assignP2PMediaLoaderInfoHashes(this.videoLive.Video, Array.from(hlsStreams).map(r => ({ height: r })))
 
         await this.streamingPlaylist.save()
       } catch (err) {
@@ -542,7 +551,10 @@ class MuxingSession extends EventEmitter implements MuxingSession {
       hasVideo: this.hasVideo,
       probe: this.probe,
 
-      segmentListSize: VIDEO_LIVE.SEGMENTS_LIST_SIZE,
+      segmentListSize: getLiveSegmentListSize({
+        latencyMode: this.videoLive.latencyMode,
+        dvrWindow: this.videoLive.dvrWindow
+      }),
       segmentDuration: getLiveSegmentTime(this.videoLive.latencyMode),
 
       outDirectory: this.outDirectory

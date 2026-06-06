@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import { wait } from '@peertube/peertube-core-utils'
 import { Video, VideoCommentPolicy, VideoPrivacy } from '@peertube/peertube-models'
@@ -118,6 +118,15 @@ describe('Test a single server', function () {
       expect(Object.keys(languages)).to.have.length.above(5)
 
       expect(languages['ru']).to.equal('Russian')
+      expect(languages['jsl']).to.not.be.undefined
+    })
+
+    it('Should list video text languages', async function () {
+      const languages = await server.videos.getLanguages({ scope: 'subtitle' })
+      expect(Object.keys(languages)).to.have.length.above(5)
+
+      expect(languages['ru']).to.equal('Russian')
+      expect(languages['jsl']).to.be.undefined
     })
 
     it('Should list video privacies', async function () {
@@ -189,7 +198,7 @@ describe('Test a single server', function () {
       await server.views.simulateView({ id: videoId })
       await server.views.simulateView({ id: videoId })
 
-      await server.debug.sendCommand({ body: { command: 'process-video-views-buffer' } })
+      await server.debug.sendCommand({ body: { command: 'process-video-stats-buffer' } })
 
       const video = await server.videos.get({ id: videoId })
       expect(video.views).to.equal(3)

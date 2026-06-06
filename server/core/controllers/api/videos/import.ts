@@ -6,12 +6,13 @@ import {
   VideoImportPayload,
   VideoImportState
 } from '@peertube/peertube-models'
+import { buildUUID } from '@peertube/peertube-node-utils'
 import { getVideoThumbnailFile } from '@server/helpers/video.js'
 import { YoutubeDlImportError, YoutubeDlImportErrorCode } from '@server/helpers/youtube-dl/youtube-dl-wrapper.js'
 import { createLocalVideoThumbnailsFromImage } from '@server/lib/thumbnail.js'
 import { buildRetryImportJob } from '@server/lib/video-post-import.js'
 import { buildVideoFromImport, buildYoutubeDLImport, insertFromImportIntoDB } from '@server/lib/video-pre-import.js'
-import { MVideoThumbnail } from '@server/types/models/index.js'
+import { MVideoThumbnails } from '@server/types/models/index.js'
 import express from 'express'
 import { move } from 'fs-extra/esm'
 import { readFile } from 'fs/promises'
@@ -22,7 +23,6 @@ import { auditLoggerFactory, getAuditIdFromRes, VideoImportAuditView } from '../
 import { isArray } from '../../../helpers/custom-validators/misc.js'
 import { cleanUpReqFiles, createReqFiles } from '../../../helpers/express-utils.js'
 import { logger } from '../../../helpers/logger.js'
-import { getSecureTorrentName } from '../../../helpers/utils.js'
 import { CONFIG } from '../../../initializers/config.js'
 import { MIMETYPES } from '../../../initializers/constants.js'
 import { JobQueue } from '../../../lib/job-queue/job-queue.js'
@@ -161,9 +161,11 @@ async function handleTorrentImport (req: express.Request, res: express.Response,
     type: torrentfile
       ? 'torrent-file'
       : 'magnet-uri',
+
     videoImportId: videoImport.id,
     preventException: false,
-    generateTranscription: body.generateTranscription
+    generateTranscription: body.generateTranscription,
+    torrentPath: torrentfile?.path ?? null
   }
 
   videoImport.payload = payload
@@ -223,7 +225,7 @@ async function handleYoutubeDlImport (req: express.Request, res: express.Respons
   }
 }
 
-function processThumbnails (req: express.Request, video: MVideoThumbnail) {
+function processThumbnails (req: express.Request, video: MVideoThumbnails) {
   const file = getVideoThumbnailFile(req.files)
   if (!file) return []
 
@@ -238,13 +240,11 @@ async function processTorrentOrAbortRequest (req: express.Request, res: express.
   const torrentName = torrentfile.originalname
 
   // Rename the torrent to a secured name
-  const newTorrentPath = join(CONFIG.STORAGE.TORRENTS_DIR, getSecureTorrentName(torrentName))
+  const newTorrentPath = join(CONFIG.STORAGE.TMP_PERSISTENT_DIR, buildUUID() + '.torrent')
   await move(torrentfile.path, newTorrentPath, { overwrite: true })
   torrentfile.path = newTorrentPath
 
-  const buf = await readFile(torrentfile.path)
-  // FIXME: typings: parseTorrent now returns an async result
-  const parsedTorrent = await (parseTorrent(buf) as unknown as Promise<Instance>)
+  const parsedTorrent = await parseTorrentPromise(torrentfile.path)
 
   if (parsedTorrent.files.length !== 1) {
     cleanUpReqFiles(req)
@@ -274,4 +274,10 @@ function processMagnetURI (body: VideoImportCreate) {
 
 function extractNameFromArray (name: string | string[]) {
   return isArray(name) ? name[0] : name
+}
+
+async function parseTorrentPromise (torrentFilePath: string) {
+  const buf = await readFile(torrentFilePath)
+
+  return parseTorrent(buf) as Instance
 }

@@ -1,7 +1,6 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "outDir": "./dist/out-tsc",
     "sourceMap": true,
     "declaration": false,
     "moduleResolution": "bundler",
@@ -16,16 +15,20 @@
     "strictBindCallApply": true,
     "target": "ES2022",
     "isolatedModules": true,
+    "strictPropertyInitialization": false,
+    "strictNullChecks": false,
     "typeRoots": [
       "node_modules/@types"
     ],
-    "baseUrl": "./",
     "paths": {
       "@app/*": [
-        "src/app/*"
+        "./src/app/*"
       ],
       "@root-helpers/*": [
-        "src/root-helpers/*"
+        "./src/root-helpers/*"
+      ],
+      "@pt-types": [
+        "./src/types"
       ]
     }
   },
@@ -35,16 +38,15 @@
     { "path": "../packages/typescript-utils" }
   ],
   "include": [
-    "src/polyfills.ts",
-    "src/environments/*.ts",
-    "src/main*.ts",
-    "src/**/*.d.ts",
-    "src/app/**/*.ts",
-    "src/shims/*.ts"
+    "./src/polyfills.ts",
+    "./src/environments/*.ts",
+    "./src/main*.ts",
+    "./src/**/*.d.ts",
+    "./src/app/**/*.ts",
+    "./src/shims/*.ts"
   ],
   "angularCompilerOptions": {
     "strictInjectionParameters": true,
-    "fullTemplateTypeCheck": true,
     "strictTemplates": true,
     "enableI18nLegacyMessageIdFormat": false
   }

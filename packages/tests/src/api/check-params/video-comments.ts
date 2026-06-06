@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import { HttpStatusCode, VideoCommentPolicy, VideoCreateResult, VideoPrivacy } from '@peertube/peertube-models'
 import {
@@ -507,7 +507,8 @@ describe('Test video comments API validator', function () {
         searchVideo: 'toto',
         videoId: video.uuid,
         videoChannelId: server.store.channel.id,
-        autoTagOneOf: [ 'external-link' ]
+        autoTagOneOf: [ 'external-link' ],
+        includeMuted: false
       }
 
       await server.comments.listForAdmin({ ...base, isLocal: false })

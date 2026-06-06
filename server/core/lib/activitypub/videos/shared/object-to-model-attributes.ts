@@ -200,6 +200,7 @@ export function getLiveAttributesFromObject (video: MVideoId, videoObject: Video
     saveReplay: videoObject.liveSaveReplay,
     permanentLive: videoObject.permanentLive,
     latencyMode: videoObject.latencyMode,
+    dvrWindow: getDurationFromActivityStream(videoObject.dvrWindow),
     videoId: video.id
   }
 }
@@ -315,6 +316,7 @@ export function getVideoAttributesFromObject (videoChannel: MChannelId, videoObj
 
     updatedAt: new Date(videoObject.updated),
     views: videoObject.views,
+    downloads: videoObject.downloads || 0,
     remote: true,
     privacy
   }

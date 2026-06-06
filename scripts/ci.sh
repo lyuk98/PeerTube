@@ -110,9 +110,9 @@ elif [ "$1" = "api-3" ]; then
     npm run build:tests
 
     videosFiles=$(findTestFiles ./packages/tests/dist/api/videos)
-    viewsFiles=$(findTestFiles ./packages/tests/dist/api/views)
+    statsFiles=$(findTestFiles ./packages/tests/dist/api/stats)
 
-    MOCHA_PARALLEL=true runJSTest "$1" $((3*$speedFactor)) $viewsFiles $videosFiles
+    MOCHA_PARALLEL=true runJSTest "$1" $((3*$speedFactor)) $statsFiles $videosFiles
 elif [ "$1" = "api-4" ]; then
     npm run build:server
     npm run build:tests
@@ -144,7 +144,7 @@ elif [ "$1" = "external-plugins" ]; then
     runJSTest "$1" 1 $externalPluginsFiles
     MOCHA_PARALLEL=true runJSTest "$1" $((2*$speedFactor)) $peertubeRunnerFiles
 elif [ "$1" = "lint" ]; then
-    npm run eslint
+    npm run oxlint -- --import-plugin --promise-plugin --node-plugin
 
     npm run swagger-cli -- validate support/doc/api/openapi.yaml
 

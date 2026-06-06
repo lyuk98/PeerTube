@@ -30,12 +30,13 @@ export class CommentsCommand extends AbstractCommand {
   listForAdmin (options: OverrideCommandOptions & ListForAdminOrAccountCommonOptions & {
     isLocal?: boolean
     onLocalVideo?: boolean
+    includeMuted?: boolean
   } = {}) {
     const path = '/api/v1/videos/comments'
 
     const query = {
       ...this.buildListForAdminOrAccountQuery(options),
-      ...pick(options, [ 'isLocal', 'onLocalVideo' ])
+      ...pick(options, [ 'isLocal', 'onLocalVideo', 'includeMuted' ])
     }
 
     return this.getRequestBody<ResultList<VideoCommentForAdminOrUser>>({
@@ -151,8 +152,10 @@ export class CommentsCommand extends AbstractCommand {
       defaultExpectedStatus: HttpStatusCode.OK_200
     }))
 
-    this.lastThreadId = body.comment?.id
-    this.lastVideoId = videoId
+    if (body.comment?.id) {
+      this.lastThreadId = body.comment?.id
+      this.lastVideoId = videoId
+    }
 
     return body.comment
   }
@@ -178,7 +181,9 @@ export class CommentsCommand extends AbstractCommand {
       defaultExpectedStatus: HttpStatusCode.OK_200
     }))
 
-    this.lastReplyId = body.comment?.id
+    if (body.comment?.id) {
+      this.lastReplyId = body.comment?.id
+    }
 
     return body.comment
   }

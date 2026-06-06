@@ -51,10 +51,11 @@ export class Video implements VideoServerModel {
   name: string
   serverHost: string
 
-  thumbnailPath: string
-  thumbnailUrl: string
-  previewPath: string
-  previewUrl: string
+  thumbnailPath: never
+  thumbnailUrl: never
+  previewPath: never
+  previewUrl: never
+
   thumbnails: Thumbnail[]
 
   aspectRatio: number
@@ -69,6 +70,8 @@ export class Video implements VideoServerModel {
 
   views: number
   viewers: number
+
+  downloads: number
 
   likes: number
   dislikes: number
@@ -87,8 +90,8 @@ export class Video implements VideoServerModel {
   blacklisted?: boolean
   blacklistedReason?: string
 
-  blockedOwner?: boolean
-  blockedServer?: boolean
+  blockedOwner?: never
+  blockedServer?: never
 
   account: {
     id: number
@@ -121,6 +124,7 @@ export class Video implements VideoServerModel {
 
   videoSource?: VideoSource
 
+  tags?: string[]
   automaticTags?: string[]
 
   comments: number
@@ -129,7 +133,7 @@ export class Video implements VideoServerModel {
     return buildVideoWatchPath({ shortUUID: video.shortUUID || video.uuid })
   }
 
-  static buildUpdateUrl (video: Partial<Pick<Video, 'uuid' | 'shortUUID'>>) {
+  static buildManageUrl (video: Partial<Pick<Video, 'uuid' | 'shortUUID'>>) {
     return '/videos/manage/' + (video.shortUUID || video.uuid)
   }
 
@@ -155,8 +159,6 @@ export class Video implements VideoServerModel {
       ? hash.liveSchedules.map(schedule => ({ startAt: new Date(schedule.startAt.toString()) }))
       : null
 
-    // Required for search index backward compatibility, as `thumbnails` was introduced in peertube 8.1
-    this.thumbnailUrl = hash.thumbnailUrl
     this.thumbnails = hash.thumbnails
 
     this.duration = hash.duration
@@ -178,6 +180,7 @@ export class Video implements VideoServerModel {
     this.viewers = hash.viewers
     this.likes = hash.likes
     this.dislikes = hash.dislikes
+    this.downloads = hash.downloads
 
     this.nsfw = hash.nsfw
     this.nsfwFlags = hash.nsfwFlags
@@ -204,9 +207,6 @@ export class Video implements VideoServerModel {
     this.blacklisted = hash.blacklisted
     this.blacklistedReason = hash.blacklistedReason
 
-    this.blockedOwner = hash.blockedOwner
-    this.blockedServer = hash.blockedServer
-
     this.streamingPlaylists = hash.streamingPlaylists
     this.files = hash.files
 
@@ -225,6 +225,7 @@ export class Video implements VideoServerModel {
 
     this.aspectRatio = hash.aspectRatio
 
+    this.tags = hash.tags
     this.automaticTags = hash.automaticTags
 
     this.comments = hash.comments

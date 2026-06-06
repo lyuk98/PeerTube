@@ -9,7 +9,13 @@ import { auditLoggerFactory, getAuditIdFromRes, VideoAuditView } from '../../../
 import { buildNSFWFilters, getCountVideos } from '../../../helpers/express-utils.js'
 import { logger } from '../../../helpers/logger.js'
 import { getFormattedObjects } from '../../../helpers/utils.js'
-import { VIDEO_CATEGORIES, VIDEO_LANGUAGES, VIDEO_LICENCES, VIDEO_PRIVACIES } from '../../../initializers/constants.js'
+import {
+  VIDEO_CATEGORIES,
+  VIDEO_LANGUAGES,
+  VIDEO_LICENCES,
+  VIDEO_PRIVACIES,
+  VIDEO_TEXT_LANGUAGES
+} from '../../../initializers/constants.js'
 import { sequelizeTypescript } from '../../../initializers/database.js'
 import { Hooks } from '../../../lib/plugins/hooks.js'
 import {
@@ -23,7 +29,8 @@ import {
   paginationValidator,
   setDefaultPagination,
   setDefaultVideosSort,
-  videosCustomGetValidator,
+  videoGetValidatorFactory,
+  videoLanguagesScopeValidator,
   videosRemoveValidator,
   videosSortValidator
 } from '../../../middlewares/index.js'
@@ -78,7 +85,7 @@ videosRouter.use('/', videoEmbedPrivacyRouter)
 
 videosRouter.get('/categories', openapiOperationDoc({ operationId: 'getCategories' }), listVideoCategories)
 videosRouter.get('/licences', openapiOperationDoc({ operationId: 'getLicences' }), listVideoLicences)
-videosRouter.get('/languages', openapiOperationDoc({ operationId: 'getLanguages' }), listVideoLanguages)
+videosRouter.get('/languages', openapiOperationDoc({ operationId: 'getLanguages' }), videoLanguagesScopeValidator, listVideoLanguages)
 videosRouter.get('/privacies', openapiOperationDoc({ operationId: 'getPrivacies' }), listVideoPrivacies)
 
 videosRouter.get(
@@ -97,7 +104,7 @@ videosRouter.get(
   '/:id',
   openapiOperationDoc({ operationId: 'getVideo' }),
   optionalAuthenticate,
-  asyncMiddleware(videosCustomGetValidator('for-api')),
+  asyncMiddleware(videoGetValidatorFactory('for-api')),
   asyncMiddleware(checkVideoFollowConstraints),
   asyncMiddleware(getVideo)
 )
@@ -126,7 +133,13 @@ function listVideoLicences (_req: express.Request, res: express.Response) {
   res.json(VIDEO_LICENCES)
 }
 
-function listVideoLanguages (_req: express.Request, res: express.Response) {
+function listVideoLanguages (req: express.Request, res: express.Response) {
+  const scope = req.query.scope as string
+
+  if (scope === 'subtitle') {
+    return res.json(VIDEO_TEXT_LANGUAGES)
+  }
+
   res.json(VIDEO_LANGUAGES)
 }
 
@@ -175,7 +188,7 @@ async function listVideos (req: express.Request, res: express.Response) {
 }
 
 async function removeVideo (req: express.Request, res: express.Response) {
-  const videoInstance = res.locals.videoAll
+  const videoInstance = res.locals.videoFull
 
   await sequelizeTypescript.transaction(async t => {
     await videoInstance.destroy({ transaction: t })

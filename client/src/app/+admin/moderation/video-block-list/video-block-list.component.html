@@ -6,24 +6,33 @@
   paginatorText="videos per page"
   [dataLoader]="dataLoader"
   columnConfig="false"
+  [inputFilters]="inputFilters"
+  [bulkActions]="bulkActions"
+  searchInput="true"
+  (dataLoaded)="onDataLoaded()"
   >
   <ng-template #totalTitle let-totalRecords>
     <ng-container i18n>{ totalRecords, plural, =0 {No video} =1 {1 video} other {{{ totalRecords | myNumberFormatter }} videos}}</ng-container>
   </ng-template>
 
-  <ng-template #captionRight>
-    <my-advanced-input-filter [filters]="inputFilters" (search)="table.onSearch($event)"></my-advanced-input-filter>
-  </ng-template>
-
   <ng-template #tableCells let-videoBlock>
     <td>
-      <my-video-cell [video]="videoBlock.video" size="small">
+      <my-video-cell
+        [video]="videoBlock.video"
+        [accountBlockBadges]="videoBlock.video.account ? accountBlocklist.get(videoBlock.video.account.id) : undefined"
+        accountBlockBadgesPlatformOnly="true"
+        size="small"
+      >
         <div>
           @if (videoBlock.type === 2) {
             <span i18n-title title="The video was blocked due to automatic blocking of new videos" class="pt-badge badge-info badge-small" i18n>Auto block</span>
           }
         </div>
       </my-video-cell>
+    </td>
+
+    <td>
+      <my-privacy-badge [video]="videoBlock.video"></my-privacy-badge>
     </td>
 
     <td>
@@ -52,9 +61,12 @@
     @if (videoBlock) {
       <div class="d-flex moderation-expanded">
         <div class="left">
-          <span class="moderation-expanded-label" i18n>Block reason:</span>
-          <span class="moderation-expanded-text" [innerHTML]="videoBlock.reasonHtml"></span>
+          @if (videoBlock.reasonHtml) {
+            <span class="moderation-expanded-label" i18n>Block reason:</span>
+            <span class="moderation-expanded-text" [innerHTML]="videoBlock.reasonHtml"></span>
+          }
         </div>
+
         <div class="right">
           <my-embed [video]="videoBlock.video"></my-embed>
         </div>
@@ -62,8 +74,8 @@
     }
   </ng-template>
 
-  <ng-template #noResults let-search>
-    @if (search) {
+  <ng-template #noResults let-search="search" let-hasFilters="hasFilters">
+    @if (search || hasFilters) {
       <ng-container i18n>No blocked video found matching current filters.</ng-container>
     } @else {
       <ng-container i18n>No blocked video found.</ng-container>

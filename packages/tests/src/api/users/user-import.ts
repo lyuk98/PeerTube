@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import {
   HttpStatusCode,
@@ -18,7 +18,7 @@ import { areMockObjectStorageTestsDisabled } from '@peertube/peertube-node-utils
 import { ObjectStorageCommand, PeerTubeServer, cleanupTests, waitJobs } from '@peertube/peertube-server-commands'
 import { testAvatarSize, testImage } from '@tests/shared/checks.js'
 import { prepareImportExportTests } from '@tests/shared/import-export.js'
-import { MockSmtpServer } from '@tests/shared/mock-servers/index.js'
+import { MockSmtpServer } from '@tests/shared/mock-servers/mock-email.js'
 import { completeCheckHlsPlaylist } from '@tests/shared/streaming-playlists.js'
 import { completeVideoCheck } from '@tests/shared/videos.js'
 import { expect } from 'chai'
@@ -515,6 +515,7 @@ function runTest (withObjectStorage: boolean) {
 
         expect(video.isLive).to.be.true
         expect(live.latencyMode).to.equal(LiveVideoLatencyMode.SMALL_LATENCY)
+        expect(live.dvrWindow).to.equal(15)
         expect(live.saveReplay).to.be.true
         expect(live.permanentLive).to.be.true
         expect(live.streamKey).to.exist

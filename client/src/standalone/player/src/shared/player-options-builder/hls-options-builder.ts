@@ -1,4 +1,4 @@
-import { getResolutionAndFPSLabel, getResolutionLabel, timeToInt } from '@peertube/peertube-core-utils'
+import { exists, getResolutionAndFPSLabel, getResolutionLabel, timeToInt } from '@peertube/peertube-core-utils'
 import { LiveVideoLatencyMode } from '@peertube/peertube-models'
 import { logger } from '@root-helpers/logger'
 import { peertubeLocalStorage } from '@root-helpers/peertube-web-storage'
@@ -33,6 +33,7 @@ type ConstructorOptions =
     | 'p2pEnabled'
     | 'hls'
     | 'startTime'
+    | 'duration'
   >
 
 export class HLSOptionsBuilder {
@@ -217,7 +218,12 @@ export class HLSOptionsBuilder {
     const base: HLSPluginOptions = {
       capLevelToPlayerSize: true,
       autoStartLoad: false,
-      startPosition: timeToInt(this.options.startTime),
+
+      startPosition: exists(this.options.startTime)
+        ? timeToInt(this.options.startTime)
+        : -1,
+
+      durationPlaceholder: this.options.duration,
 
       p2pMediaLoaderOptions: p2pMediaLoaderConfig.loader,
 
@@ -254,28 +260,20 @@ export class HLSOptionsBuilder {
 
   private getHLSLiveOptions () {
     const latencyMode = this.options.liveOptions.latencyMode
+    const liveSyncDurationCountMap = {
+      [LiveVideoLatencyMode.SMALL_LATENCY]: 2,
+      [LiveVideoLatencyMode.DEFAULT]: 5,
+      [LiveVideoLatencyMode.HIGH_LATENCY]: 10
+    }
 
-    switch (latencyMode) {
-      case LiveVideoLatencyMode.SMALL_LATENCY:
-        return {
-          liveSyncDurationCount: 2
-        }
+    return {
+      liveDvrEnabled: this.options.liveOptions.dvrEnabled,
 
-      case LiveVideoLatencyMode.HIGH_LATENCY:
-        return {
-          liveSyncDurationCount: 10
-        }
-
-      default:
-        return {
-          liveSyncDurationCount: 5
-        }
+      liveSyncDurationCount: liveSyncDurationCountMap[latencyMode] ?? liveSyncDurationCountMap[LiveVideoLatencyMode.DEFAULT]
     }
   }
 
   private getHLSVODOptions () {
-    return {
-      liveSyncDurationCount: 5
-    }
+    return {}
   }
 }

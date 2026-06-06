@@ -24,14 +24,15 @@ import {
   VideoStateType,
   VideoStudioTask,
   VideoStudioTaskCut,
+  VideoStudioTaskRemoveSegments,
   VideoUpdate
 } from '@peertube/peertube-models'
 import { logger } from '@root-helpers/logger'
+import { splitAndGetNotEmpty } from '@root-helpers/string'
 import debug from 'debug'
 import { Jsonify, SharedUnionFieldsDeep } from 'type-fest'
 import { VideoCaptionWithPathEdit } from './video-caption-edit.model'
 import { VideoChaptersEdit } from './video-chapters-edit.model'
-import { splitAndGetNotEmpty } from '@root-helpers/string'
 
 const debugLogger = debug('peertube:video-manage:video-edit')
 
@@ -52,9 +53,14 @@ type CommonUpdateForm =
     nsfwFlagSex?: boolean
   }
 
-type LiveUpdateForm = Omit<LiveVideoUpdate, 'replaySettings' | 'schedules'> & {
+type LiveUpdateForm = Omit<LiveVideoUpdate, 'replaySettings' | 'schedules' | 'dvrWindow'> & {
   replayPrivacy?: VideoPrivacyType
+
+  dvrEnabled?: boolean
+  dvrWindowMinutes?: number
+
   liveStreamKey?: string
+
   schedules?: {
     startAt?: Date
   }[]
@@ -69,6 +75,7 @@ type StudioForm = {
   'add-intro'?: { file?: File }
   'add-outro'?: { file?: File }
   'add-watermark'?: { file?: File }
+  'remove-segments'?: { start?: number, end?: number }[]
 }
 
 type PlayerSettingsForm = PlayerVideoSettingsUpdate
@@ -90,7 +97,12 @@ type CreateFromImportOptions = LoadFromPublishOptions & Pick<VideoImportCreate, 
 
 type CreateFromLiveOptions =
   & CreateFromUploadOptions
-  & Required<Pick<LiveVideoCreate, 'permanentLive' | 'latencyMode' | 'saveReplay' | 'replaySettings' | 'schedules'>>
+  & Required<
+    Pick<
+      LiveVideoCreate,
+      'permanentLive' | 'latencyMode' | 'dvrWindow' | 'saveReplay' | 'replaySettings' | 'schedules'
+    >
+  >
 
 type UpdateFromAPIOptions = {
   video?: Pick<
@@ -120,6 +132,7 @@ type UpdateFromAPIOptions = {
     | 'likes'
     | 'aspectRatio'
     | 'views'
+    | 'downloads'
     | 'blacklisted'
     | 'blacklistedReason'
     | 'thumbnails'
@@ -173,6 +186,7 @@ export class VideoEdit {
     state: VideoStateType
     isLive: boolean
     views: number
+    downloads: number
     aspectRatio: number
     duration: number
     likes: number
@@ -197,6 +211,7 @@ export class VideoEdit {
     aspectRatio: number
     duration: number
     views: number
+    downloads: number
     likes: number
 
     blacklisted: boolean
@@ -275,6 +290,8 @@ export class VideoEdit {
       latencyMode: options.latencyMode,
       permanentLive: options.permanentLive,
 
+      dvrWindow: options.dvrWindow,
+
       saveReplay: options.saveReplay,
 
       replaySettings: options.replaySettings
@@ -310,6 +327,7 @@ export class VideoEdit {
     this.common.pluginData = {}
 
     this.metadata.views = 0
+    this.metadata.downloads = 0
     this.metadata.likes = 0
 
     this.metadata.ownerAccountDisplayName = options.user.account.displayName
@@ -429,6 +447,7 @@ export class VideoEdit {
     this.metadata.state = video.state.id
     this.metadata.duration = video.duration
     this.metadata.views = video.views
+    this.metadata.downloads = video.downloads
     this.metadata.likes = video.likes
     this.metadata.aspectRatio = video.aspectRatio
     this.metadata.blacklisted = video.blacklisted
@@ -473,6 +492,7 @@ export class VideoEdit {
       return {
         permanentLive: live.permanentLive,
         latencyMode: live.latencyMode,
+        dvrWindow: live.dvrWindow,
         saveReplay: live.saveReplay,
 
         replaySettings: live.replaySettings
@@ -706,6 +726,14 @@ export class VideoEdit {
     if (values.latencyMode !== undefined) this.live.latencyMode = values.latencyMode
     if (values.saveReplay !== undefined) this.live.saveReplay = values.saveReplay
 
+    if (values.dvrWindowMinutes !== undefined) {
+      this.live.dvrWindow = this.dvrWindowMinutesToSeconds(values.dvrWindowMinutes)
+    }
+
+    if (values.dvrEnabled !== undefined && values.dvrEnabled === false) {
+      this.live.dvrWindow = 0
+    }
+
     if (values.replayPrivacy !== undefined) {
       this.live.replaySettings = values.replayPrivacy
         ? { privacy: values.replayPrivacy }
@@ -730,6 +758,10 @@ export class VideoEdit {
       liveStreamKey: this.metadata.live.streamKey,
       permanentLive: this.live.permanentLive,
       latencyMode: this.live.latencyMode,
+
+      dvrEnabled: this.live.dvrWindow > 0,
+      dvrWindowMinutes: this.dvrWindowToMinutes(this.live.dvrWindow),
+
       saveReplay: this.live.saveReplay,
 
       replayPrivacy: this.live.replaySettings
@@ -750,7 +782,7 @@ export class VideoEdit {
         ? this.live.replaySettings
         : undefined,
       latencyMode: this.live.latencyMode,
-
+      dvrWindow: this.live.dvrWindow,
       schedules: this.live.schedules
     }
   }
@@ -761,6 +793,7 @@ export class VideoEdit {
 
       permanentLive: this.live.permanentLive,
       latencyMode: this.live.latencyMode,
+      dvrWindow: this.live.dvrWindow,
       saveReplay: this.live.saveReplay,
       replaySettings: this.live.replaySettings,
       schedules: this.live.schedules
@@ -837,6 +870,14 @@ export class VideoEdit {
         }
       })
     }
+
+    const removeSegments = (values['remove-segments'] ?? []).filter(s =>
+      exists(s.start) && exists(s.end)
+    ) as VideoStudioTaskRemoveSegments['options']['segments']
+
+    if (removeSegments.length > 0) {
+      this.studioTasks.push({ name: 'remove-segments', options: { segments: removeSegments } })
+    }
   }
 
   toStudioFormPatch (): Required<StudioForm> {
@@ -844,6 +885,7 @@ export class VideoEdit {
     const addIntro = this.studioTasks.find(t => t.name === 'add-intro')
     const addOutro = this.studioTasks.find(t => t.name === 'add-outro')
     const addWatermark = this.studioTasks.find(t => t.name === 'add-watermark')
+    const removeSegments = this.studioTasks.find(t => t.name === 'remove-segments')
 
     return {
       'cut': {
@@ -852,7 +894,8 @@ export class VideoEdit {
       },
       'add-intro': { file: addIntro?.options?.file as File ?? null },
       'add-outro': { file: addOutro?.options?.file as File },
-      'add-watermark': { file: addWatermark?.options?.file as File }
+      'add-watermark': { file: addWatermark?.options?.file as File },
+      'remove-segments': removeSegments?.options?.segments ?? []
     }
   }
 
@@ -939,37 +982,35 @@ export class VideoEdit {
   }
 
   getStudioTasksSummary () {
-    return this.getStudioTasks().map(t => {
+    const summary: string[] = []
+
+    for (const t of this.getStudioTasks()) {
       if (t.name === 'add-intro') {
-        return $localize`"${(t.options.file as File).name}" will be added at the beginning of the video`
-      }
-
-      if (t.name === 'add-outro') {
-        return $localize`"${(t.options.file as File).name}" will be added at the end of the video`
-      }
-
-      if (t.name === 'add-watermark') {
-        return $localize`"${(t.options.file as File).name}" image watermark will be added to the video`
-      }
-
-      if (t.name === 'cut') {
+        summary.push($localize`"${(t.options.file as File).name}" will be added at the beginning of the video`)
+      } else if (t.name === 'add-outro') {
+        summary.push($localize`"${(t.options.file as File).name}" will be added at the end of the video`)
+      } else if (t.name === 'add-watermark') {
+        summary.push($localize`"${(t.options.file as File).name}" image watermark will be added to the video`)
+      } else if (t.name === 'cut') {
         const { start, end } = t.options
 
         if (start !== undefined && end !== undefined) {
-          return $localize`Video will begin at ${secondsToTime(start)} and stop at ${secondsToTime(end)}`
+          summary.push($localize`Video will begin at ${secondsToTime(start)} and stop at ${secondsToTime(end)}`)
+        } else if (start !== undefined) {
+          summary.push($localize`Video will begin at ${secondsToTime(start)}`)
+        } else if (end !== undefined) {
+          summary.push($localize`Video will stop at ${secondsToTime(end)}`)
         }
+      } else if (t.name === 'remove-segments') {
+        for (let i = 1; i <= t.options.segments.length; i++) {
+          const parts = t.options.segments[i - 1]
 
-        if (start !== undefined) {
-          return $localize`Video will begin at ${secondsToTime(start)}`
-        }
-
-        if (end !== undefined) {
-          return $localize`Video will stop at ${secondsToTime(end)}`
+          summary.push($localize`Remove segment ${i} – ${secondsToTime(parts.start)} to ${secondsToTime(parts.end)}`)
         }
       }
+    }
 
-      return ''
-    })
+    return summary
   }
 
   // ---------------------------------------------------------------------------
@@ -1115,6 +1156,7 @@ export class VideoEdit {
       isLive: this.metadata.isLive,
       aspectRatio: this.metadata.aspectRatio,
       views: this.metadata.views,
+      downloads: this.metadata.downloads,
       likes: this.metadata.likes,
       duration: this.metadata.duration,
       blacklisted: this.metadata.blacklisted,
@@ -1125,6 +1167,14 @@ export class VideoEdit {
 
       live: this.metadata.live
     }
+  }
+
+  private dvrWindowToMinutes (seconds: number) {
+    return Math.round(seconds / 60)
+  }
+
+  private dvrWindowMinutesToSeconds (minutes: number) {
+    return minutes * 60
   }
 
   // ---------------------------------------------------------------------------

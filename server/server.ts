@@ -109,7 +109,7 @@ import { RemoveExpiredUserExportsScheduler } from '@server/lib/schedulers/remove
 import { UpdateTokenSessionScheduler } from '@server/lib/schedulers/update-token-session-scheduler.js'
 import { VideoChannelSyncLatestScheduler } from '@server/lib/schedulers/video-channel-sync-latest-scheduler.js'
 import { ServerConfigManager } from '@server/lib/server-config-manager.js'
-import { VideoViewsManager } from '@server/lib/views/video-views-manager.js'
+import { VideoStatsManager } from '@server/lib/stats/video-stats-manager.js'
 import { ApplicationModel } from '@server/models/application/application.js'
 import {
   activityPubRouter,
@@ -145,10 +145,10 @@ import { PeerTubeVersionCheckScheduler } from './core/lib/schedulers/peertube-ve
 import { PluginsCheckScheduler } from './core/lib/schedulers/plugins-check-scheduler.js'
 import { RemoveDanglingResumableUploadsScheduler } from './core/lib/schedulers/remove-dangling-resumable-uploads-scheduler.js'
 import { RemoveOldHistoryScheduler } from './core/lib/schedulers/remove-old-history-scheduler.js'
-import { RemoveOldViewsScheduler } from './core/lib/schedulers/remove-old-views-scheduler.js'
+import { RemoveOldStatsScheduler } from './core/lib/schedulers/remove-old-stats-scheduler.js'
 import { RunnerJobWatchDogScheduler } from './core/lib/schedulers/runner-job-watch-dog-scheduler.js'
 import { UpdateVideosScheduler } from './core/lib/schedulers/update-videos-scheduler.js'
-import { VideoViewsBufferScheduler } from './core/lib/schedulers/video-views-buffer-scheduler.js'
+import { VideoStatsBufferScheduler } from './core/lib/schedulers/video-stats-buffer-scheduler.js'
 import { VideosRedundancyScheduler } from './core/lib/schedulers/videos-redundancy-scheduler.js'
 import { YoutubeDlUpdateScheduler } from './core/lib/schedulers/youtube-dl-update-scheduler.js'
 import { advertiseDoNotTrack } from './core/middlewares/dnt.js'
@@ -318,13 +318,13 @@ async function startApplication () {
   YoutubeDlUpdateScheduler.Instance.enable()
   VideosRedundancyScheduler.Instance.enable()
   RemoveOldHistoryScheduler.Instance.enable()
-  RemoveOldViewsScheduler.Instance.enable()
+  RemoveOldStatsScheduler.Instance.enable()
   PluginsCheckScheduler.Instance.enable()
   PeerTubeVersionCheckScheduler.Instance.enable()
   AutoFollowIndexInstances.Instance.enable()
   RemoveDanglingResumableUploadsScheduler.Instance.enable()
   VideoChannelSyncLatestScheduler.Instance.enable()
-  VideoViewsBufferScheduler.Instance.enable()
+  VideoStatsBufferScheduler.Instance.enable()
   GeoIPUpdateScheduler.Instance.enable()
   RunnerJobWatchDogScheduler.Instance.enable()
   RemoveExpiredUserExportsScheduler.Instance.enable()
@@ -337,7 +337,7 @@ async function startApplication () {
   PluginManager.Instance.registerWebSocketRouter()
 
   PeerTubeSocket.Instance.init(server)
-  VideoViewsManager.Instance.init()
+  VideoStatsManager.Instance.init()
 
   updateStreamingPlaylistsInfohashesIfNeeded()
     .catch(err => logger.error('Cannot update streaming playlist infohashes.', { err }))

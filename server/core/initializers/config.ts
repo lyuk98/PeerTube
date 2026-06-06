@@ -124,6 +124,15 @@ const CONFIG = {
     ENABLED: config.get<boolean>('nsfw_flags_settings.enabled')
   },
 
+  DOWNLOAD: {
+    MAX_TOTAL_BYTES_PER_SECOND: config.get<string | number | null>('download.max_total_bytes_per_second') === null
+      ? null
+      : parseBytes(config.get<string | number>('download.max_total_bytes_per_second')),
+    MAX_BYTES_PER_IP_PER_SECOND: config.get<string | number | null>('download.max_bytes_per_ip_per_second') === null
+      ? null
+      : parseBytes(config.get<string | number>('download.max_bytes_per_ip_per_second'))
+  },
+
   DOWNLOAD_GENERATE_VIDEO: {
     MAX_PARALLEL_DOWNLOADS: config.get<number>('download_generate_video.max_parallel_downloads')
   },
@@ -211,6 +220,11 @@ const CONFIG = {
       },
       get LICENCE () {
         return config.get<number>('defaults.publish.licence')
+      }
+    },
+    LIVE: {
+      get SAVE_REPLAY () {
+        return config.get<boolean>('defaults.live.save_replay')
       }
     },
     P2P: {
@@ -721,6 +735,15 @@ const CONFIG = {
       return config.get<boolean>('live.allow_replay')
     },
 
+    DVR: {
+      get MAX_WINDOW () { // In seconds
+        const value = config.get<string>('live.dvr.max_window')
+        if (typeof value === 'number') return value
+
+        return Math.round(parseDurationToMs(value) / 1000)
+      }
+    },
+
     LATENCY_SETTING: {
       get ENABLED () {
         return config.get<boolean>('live.latency_setting.enabled')
@@ -898,6 +921,12 @@ const CONFIG = {
 
         get PROXIES () {
           return config.get<string[]>('import.videos.http.proxies')
+        },
+
+        COOKIES: {
+          get ENABLED () {
+            return config.get<boolean>('import.videos.http.cookies.enabled')
+          }
         }
       },
       TORRENT: {

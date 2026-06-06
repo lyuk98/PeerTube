@@ -150,7 +150,7 @@ function checkSecretsConfig () {
 function checkEmailConfig () {
   if (!isEmailEnabled()) {
     if (CONFIG.SIGNUP.ENABLED && CONFIG.SIGNUP.REQUIRES_EMAIL_VERIFICATION) {
-      throw new Error('SMTP is not configured but you require signup email verification.')
+      logger.error('SMTP is not configured but you require signup email verification.')
     }
 
     if (CONFIG.SIGNUP.ENABLED && CONFIG.SIGNUP.REQUIRES_APPROVAL) {
@@ -364,7 +364,7 @@ function checkObjectStorageConfig () {
   }
 
   if (CONFIG.OBJECT_STORAGE.MAX_UPLOAD_PART > parseBytes('250MB')) {
-    // eslint-disable-next-line max-len
+    // oxlint-disable-next-line max-len
     logger.warn(
       `Object storage max upload part seems to have a big value (${CONFIG.OBJECT_STORAGE.MAX_UPLOAD_PART} bytes). ` +
         `Consider using a lower one (like 100MB).`

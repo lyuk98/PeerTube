@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import { HttpStatusCode, VideoPrivacy, VideoResolution } from '@peertube/peertube-models'
 import {
@@ -55,6 +55,44 @@ describe('Open Telemetry', function () {
       const res = await makeRawRequest({ url: metricsUrl, expectedStatus: HttpStatusCode.OK_200 })
       expect(res.text).to.contain('peertube_job_queue_total{')
       expect(res.text).to.contain('http_request_duration_ms_bucket{')
+    })
+
+    it('Should have runner observer metrics', async function () {
+      await setAccessTokensToServers([ server ])
+
+      const runnerName = 'otel-runner'
+      const runnerVersion = '1.2.3'
+
+      const { data } = await server.runnerRegistrationTokens.list({ sort: 'createdAt' })
+      const registrationToken = data[0].registrationToken
+      const { runnerToken } = await server.runners.register({
+        name: runnerName,
+        version: runnerVersion,
+        registrationToken
+      })
+
+      try {
+        const res = await makeRawRequest({ url: metricsUrl, expectedStatus: HttpStatusCode.OK_200 })
+
+        expect(res.text).to.match(/peertube_runner_count\{[^}]*\} 1(\.0)?/)
+        expect(res.text).to.match(
+          new RegExp(`peertube_runner_info\\{[^}]*runnerName="${runnerName}"[^}]*version="${runnerVersion}"[^}]*\\} 1(\\.0)?`)
+        )
+
+        const secondsMatch = res.text.match(
+          new RegExp(`peertube_runner_seconds_since_last_contact\\{[^}]*runnerName="${runnerName}"[^}]*\\} ([0-9]+(?:\\.[0-9]+)?)`)
+        )
+        expect(secondsMatch).to.not.be.null
+
+        if (!secondsMatch) {
+          throw new Error('Could not find runner contact metric in OpenTelemetry output')
+        }
+
+        const seconds = Number.parseFloat(secondsMatch[1])
+        expect(seconds).to.be.at.least(0)
+      } finally {
+        await server.runners.unregister({ runnerToken })
+      }
     })
 
     it('Should have playback metrics', async function () {
@@ -114,7 +152,7 @@ describe('Open Telemetry', function () {
       const res = await makeRawRequest({ url: metricsUrl, expectedStatus: HttpStatusCode.OK_200 })
 
       const label =
-        // eslint-disable-next-line max-len
+        // oxlint-disable-next-line max-len
         `{videoOrigin="local",playerMode="p2p-media-loader",resolution="1080",fps="30",p2pEnabled="false",videoUUID="${video.uuid}",otel_scope_name="default"}`
       expect(res.text).to.contain(`peertube_playback_p2p_peers${label} 42`)
       expect(res.text).to.not.contain(`peertube_playback_p2p_peers${label} 7`)

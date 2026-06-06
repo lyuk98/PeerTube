@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import { AbuseState, HttpStatusCode, UserAdminFlag, UserNewFeatureInfo, UserRole, VideoPlaylistType } from '@peertube/peertube-models'
 import { cleanupTests, createSingleServer, PeerTubeServer, setAccessTokensToServers } from '@peertube/peertube-server-commands'
@@ -176,6 +176,22 @@ describe('Test users', function () {
         expect(data.length).to.equal(2)
         expect(data[0].username).to.equal('root')
         expect(data[1].username).to.equal('user_1')
+      }
+    })
+
+    it('Should filter users by role', async function () {
+      {
+        const { total, data } = await server.users.list({ role: UserRole.ADMINISTRATOR })
+        expect(total).to.equal(1)
+        expect(data.length).to.equal(1)
+        expect(data[0].username).to.equal('root')
+      }
+
+      {
+        const { total, data } = await server.users.list({ role: UserRole.USER })
+        expect(total).to.equal(1)
+        expect(data.length).to.equal(1)
+        expect(data[0].username).to.equal('user_1')
       }
     })
   })

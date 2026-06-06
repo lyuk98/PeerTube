@@ -8,6 +8,7 @@ import {
   VideoStudioTaskIntroPayload,
   VideoStudioTaskOutroPayload,
   VideoStudioTaskPayload,
+  VideoStudioTaskRemoveSegmentsPayload,
   VideoStudioTaskWatermarkPayload
 } from '@peertube/peertube-models'
 import { buildUUID } from '@peertube/peertube-node-utils'
@@ -20,7 +21,7 @@ import { VideoPathManager } from '@server/lib/video-path-manager.js'
 import { approximateIntroOutroAdditionalSize, onVideoStudioEnded, safeCleanupStudioTMPFiles } from '@server/lib/video-studio.js'
 import { UserModel } from '@server/models/user/user.js'
 import { VideoModel } from '@server/models/video/video.js'
-import { MVideo, MVideoFullLight } from '@server/types/models/index.js'
+import { MVideo, MVideoFull } from '@server/types/models/index.js'
 import { MutexInterface } from 'async-mutex'
 import { Job } from 'bullmq'
 import { remove } from 'fs-extra/esm'
@@ -135,7 +136,8 @@ const taskProcessors: { [id in VideoStudioTask['name']]: (options: TaskProcessor
   'add-intro': processAddIntroOutro,
   'add-outro': processAddIntroOutro,
   'cut': processCut,
-  'add-watermark': processAddWatermark
+  'add-watermark': processAddWatermark,
+  'remove-segments': processRemoveSegments
 }
 
 async function processTask (options: TaskProcessorOptions) {
@@ -177,6 +179,18 @@ function processCut (options: TaskProcessorOptions<VideoStudioTaskCutPayload>) {
   })
 }
 
+function processRemoveSegments (options: TaskProcessorOptions<VideoStudioTaskRemoveSegmentsPayload>) {
+  const { task, lTags } = options
+
+  logger.debug('Will remove segments from the video.', { options, ...lTags })
+
+  return buildFFmpegEdition().removeSegments({
+    ...pick(options, [ 'inputFileMutexReleaser', 'videoInputPath', 'separatedAudioInputPath', 'outputPath' ]),
+
+    segments: task.options.segments
+  })
+}
+
 function processAddWatermark (options: TaskProcessorOptions<VideoStudioTaskWatermarkPayload>) {
   const { task, lTags } = options
 
@@ -189,7 +203,7 @@ function processAddWatermark (options: TaskProcessorOptions<VideoStudioTaskWater
 
     videoFilters: {
       watermarkSizeRatio: task.options.watermarkSizeRatio,
-      horitonzalMarginRatio: task.options.horitonzalMarginRatio,
+      horizontalMarginRatio: task.options.horizontalMarginRatio,
       verticalMarginRatio: task.options.verticalMarginRatio
     }
   })
@@ -197,7 +211,7 @@ function processAddWatermark (options: TaskProcessorOptions<VideoStudioTaskWater
 
 // ---------------------------------------------------------------------------
 
-async function checkUserQuotaOrThrow (video: MVideoFullLight, payload: VideoStudioEditionPayload) {
+async function checkUserQuotaOrThrow (video: MVideoFull, payload: VideoStudioEditionPayload) {
   const user = await UserModel.loadByVideoId(video.id)
 
   const filePathFinder = (i: number) => (payload.tasks[i] as VideoStudioTaskIntroPayload | VideoStudioTaskOutroPayload).options.file

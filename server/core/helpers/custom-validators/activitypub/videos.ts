@@ -15,7 +15,7 @@ import validator from 'validator'
 import { CONSTRAINTS_FIELDS, MIMETYPES } from '../../../initializers/constants.js'
 import { peertubeTruncate } from '../../core-utils.js'
 import { exists, isArray, isBooleanValid, isDateValid, isUUIDValid } from '../misc.js'
-import { isLiveLatencyModeValid } from '../video-lives.js'
+import { isLiveDvrWindowValid, isLiveLatencyModeValid } from '../video-lives.js'
 import {
   isVideoCommentsPolicyValid,
   isVideoDescriptionValid,
@@ -25,7 +25,14 @@ import {
   isVideoTagValid,
   isVideoViewsValid
 } from '../videos.js'
-import { isActivityPubUrlValid, isActivityPubVideoDurationValid, isBaseActivityValid, setValidAttributedTo } from './misc.js'
+import {
+  isActivityPubUrlValid,
+  isActivityPubVideoDurationValid,
+  isBaseActivityValid,
+  setValidAttributedTo,
+  setValidRemoteIcon
+} from './misc.js'
+import { getDurationFromActivityStream } from '@server/lib/activitypub/activity.js'
 
 export function sanitizeAndCheckVideoTorrentUpdateActivity (activity: any) {
   return isBaseActivityValid(activity, 'Update') &&
@@ -45,7 +52,7 @@ export function sanitizeAndCheckVideoTorrentObject (video: VideoObject) {
   if (!setRemoteVideoContent(video)) return fail('content')
   if (!setValidAttributedTo(video)) return fail('attributedTo')
   if (!setValidRemoteCaptions(video)) return fail('captions')
-  if (!setValidRemoteIcon(video)) return fail('icons')
+  if (!setValidRemoteIcon(video) || video.icon.length === 0) return fail('icons')
   if (!setValidStoryboard(video)) return fail('preview (storyboard)')
   if (!setValidLicence(video)) return fail('licence')
 
@@ -71,7 +78,10 @@ export function sanitizeAndCheckVideoTorrentObject (video: VideoObject) {
   if (!isVideoNameValid(video.name)) return fail('name')
 
   if (!isActivityPubVideoDurationValid(video.duration)) return fail('duration format')
-  if (!isVideoDurationValid(video.duration.replace(/[^0-9]+/g, ''))) return fail('duration')
+  if (!isVideoDurationValid('' + getDurationFromActivityStream(video.duration))) return fail('duration')
+
+  if (!isActivityPubVideoDurationValid(video.dvrWindow)) video.dvrWindow = 'PT0S'
+  if (!isLiveDvrWindowValid('' + getDurationFromActivityStream(video.dvrWindow), Infinity)) video.dvrWindow = 'PT0S'
 
   if (!isUUIDValid(video.uuid)) return fail('uuid')
 
@@ -203,21 +213,6 @@ function isRemoteStringIdentifierValid (data: any) {
 
 function isRemoteVideoContentValid (mediaType: string, content: string) {
   return (mediaType === 'text/markdown' || mediaType === 'text/html') && isVideoDescriptionValid(content)
-}
-
-function setValidRemoteIcon (video: any) {
-  if (video.icon && !isArray(video.icon)) video.icon = [ video.icon ]
-  if (!video.icon) video.icon = []
-
-  video.icon = video.icon.filter(icon => {
-    return icon.type === 'Image' &&
-      isActivityPubUrlValid(icon.url) &&
-      !!MIMETYPES.IMAGE.MIMETYPE_EXT[icon.mediaType] &&
-      validator.default.isInt(icon.width + '', { min: 0 }) &&
-      validator.default.isInt(icon.height + '', { min: 0 })
-  })
-
-  return video.icon.length !== 0
 }
 
 function setValidRemoteVideoUrls (video: any) {

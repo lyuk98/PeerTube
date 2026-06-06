@@ -10,9 +10,9 @@ import { isHostValid } from '@server/helpers/custom-validators/servers.js'
 import { VideoLoadType } from '@server/lib/model-loaders/video.js'
 import { Redis } from '@server/lib/redis.js'
 import { buildUploadXFile, safeUploadXCleanup } from '@server/lib/uploadx.js'
-import { VideoChangeOwnershipModel } from '@server/models/video/video-change-ownership.js'
+import { ChangeOwnershipModel } from '@server/models/video/change-ownership.js'
 import { ExpressPromiseHandler } from '@server/types/express-handler.js'
-import { MVideoFullLight } from '@server/types/models/index.js'
+import { MVideoFull } from '@server/types/models/index.js'
 import express from 'express'
 import { body, param, query, ValidationChain } from 'express-validator'
 import {
@@ -236,7 +236,7 @@ export const videosUpdateValidator = getCommonVideoEditAttributes().concat([
 
     if (!isValidPasswordProtectedPrivacy(req, res)) return cleanUpReqFiles(req)
 
-    const video = res.locals.videoAll
+    const video = res.locals.videoFull
     if (exists(req.body.privacy) && video.isLive && video.privacy !== req.body.privacy && video.state !== VideoState.WAITING_FOR_LIVE) {
       return res.fail({ message: req.t('Cannot update privacy of a live that has already started') })
     }
@@ -258,7 +258,7 @@ export const videosUpdateValidator = getCommonVideoEditAttributes().concat([
 
     // Not the same account as original video channel
     if (targetChannel && targetChannel.accountId !== video.VideoChannel.accountId) {
-      const ownershipChange = await VideoChangeOwnershipModel.loadPendingByVideo(video.id)
+      const ownershipChange = await ChangeOwnershipModel.loadPendingByVideo(video.id)
 
       if (ownershipChange) {
         res.fail({
@@ -271,7 +271,7 @@ export const videosUpdateValidator = getCommonVideoEditAttributes().concat([
 
       // Check quota of the target channel
       const channelUser = { id: targetChannel.Account.userId }
-      if (!await checkUserQuota({ channelUser, videoFileSize: video.getMaxQualityBytes(), req, res })) {
+      if (!await checkUserQuota({ channelUser, uploadSize: video.getMaxQualityBytes(), req, res })) {
         return false
       }
     }
@@ -308,8 +308,8 @@ export async function checkVideoFollowConstraints (req: express.Request, res: ex
   })
 }
 
-type FetchType = Extract<VideoLoadType, 'for-api' | 'all' | 'only-video-and-blacklist' | 'unsafe-only-immutable-attributes'>
-export const videosCustomGetValidator = (fetchType: FetchType) => {
+type FetchType = Extract<VideoLoadType, 'for-api' | 'full' | 'with-blacklist' | 'unsafe-immutable-only'>
+export const videoGetValidatorFactory = (fetchType: FetchType) => {
   return [
     isValidVideoIdParam('id'),
 
@@ -320,9 +320,9 @@ export const videosCustomGetValidator = (fetchType: FetchType) => {
       if (!await doesVideoExist(req.params.id, res, fetchType)) return
 
       // Controllers does not need to check video rights
-      if (fetchType === 'unsafe-only-immutable-attributes') return next()
+      if (fetchType === 'unsafe-immutable-only') return next()
 
-      const video = getVideoWithAttributes(res) as MVideoFullLight
+      const video = getVideoWithAttributes(res) as MVideoFull
 
       if (!await checkCanSeeVideo({ req, res, video, paramId: req.params.id })) return
 
@@ -331,9 +331,7 @@ export const videosCustomGetValidator = (fetchType: FetchType) => {
   ]
 }
 
-export const videosGetValidator = videosCustomGetValidator('all')
-
-export const videoFileMetadataGetValidator = getCommonVideoEditAttributes().concat([
+export const videoFileMetadataGetValidator = [
   isValidVideoIdParam('id'),
 
   param('videoFileId')
@@ -345,14 +343,14 @@ export const videoFileMetadataGetValidator = getCommonVideoEditAttributes().conc
 
     return next()
   }
-])
+]
 
 export const videosDownloadValidator = [
   isValidVideoIdParam('id'),
 
   async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (areValidationErrors(req, res)) return
-    if (!await doesVideoExist(req.params.id, res, 'all')) return
+    if (!await doesVideoExist(req.params.id, res, 'full')) return
 
     const video = getVideoWithAttributes(res)
 
@@ -386,7 +384,7 @@ export const videosRemoveValidator = [
     if (
       !await checkCanManageVideo({
         user: res.locals.oauth.token.User,
-        video: res.locals.videoAll,
+        video: res.locals.videoFull,
         right: UserRight.REMOVE_ANY_VIDEO,
         req,
         res,
@@ -574,6 +572,10 @@ export const commonVideosFiltersValidatorFactory = (options: {
       .optional()
       .customSanitizer(toArray)
       .custom(isStringArray).withMessage('Should have a valid autoTagOneOf array'),
+    query('stateOneOf')
+      .optional()
+      .customSanitizer(toArray)
+      .custom(isNumberArray).withMessage('Should have a valid stateOneOf array'),
     query('host')
       .optional()
       .custom(isHostValid),
@@ -592,11 +594,13 @@ export const commonVideosFiltersValidatorFactory = (options: {
 
       const user = res.locals.oauth?.token.User
 
-      if ((!user || user.hasRight(UserRight.SEE_ALL_VIDEOS) !== true)) {
-        if (query.include || (options.allowPrivacyFilterForAllUsers !== true && query.privacyOneOf) || query.autoTagOneOf) {
+      if ((user?.hasRight(UserRight.SEE_ALL_VIDEOS) !== true)) {
+        if (
+          query.include || (options.allowPrivacyFilterForAllUsers !== true && query.privacyOneOf) || query.autoTagOneOf || query.stateOneOf
+        ) {
           return res.fail({
             status: HttpStatusCode.UNAUTHORIZED_401,
-            message: req.t('You are not allowed to see all videos, specify a custom include or auto tags filter')
+            message: req.t('You are not allowed to see all videos, specify a custom include, auto tags or state filter')
           })
         }
       }
@@ -639,6 +643,19 @@ export function areErrorsInNSFW (req: express.Request, res: express.Response) {
 
   return false
 }
+
+export const videoLanguagesScopeValidator = [
+  query('scope')
+    .optional()
+    .isIn([ 'subtitle' ])
+    .withMessage('Should have a valid scope (subtitle)'),
+
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (areValidationErrors(req, res)) return
+
+    return next()
+  }
+]
 
 // ---------------------------------------------------------------------------
 // Private

@@ -7,16 +7,14 @@
   paginatorText="comments per page"
   [bulkActions]="bulkActions"
   [dataLoader]="dataLoader"
+  [inputFilters]="inputFilters"
+  searchInput="true"
+  refreshButton="true"
+  (dataLoaded)="onDataLoaded()"
   >
 
   <ng-template #totalTitle let-totalRecords>
     <ng-container i18n>{ totalRecords, plural, =0 {No comments} =1 {1 comment} other {{{ totalRecords | myNumberFormatter }} comments}}</ng-container>
-  </ng-template>
-
-  <ng-template #captionRight>
-    <my-advanced-input-filter [filters]="inputFilters" (search)="table.onSearch($event)"></my-advanced-input-filter>
-
-    <my-button i18n-label label="Refresh" icon="refresh" (click)="table.loadData()"></my-button>
   </ng-template>
 
   <ng-template #tableCells let-comment>
@@ -48,15 +46,19 @@
 
     @if (table.isColumnDisplayed('account')) {
       <td>
-        <a [href]="comment.account.localUrl" i18n-title title="Open account in a new tab" target="_blank" rel="noopener noreferrer">
-          <div class="chip two-lines">
-            <my-actor-avatar [actor]="comment.account" actorType="account" size="32"></my-actor-avatar>
-            <div>
-              {{ comment.account.displayName }}
-              <span>{{ comment.by }}</span>
+        <div class="d-flex flex-column gap-1">
+          <a routerLink="." [queryParams]="{ searchAccount: comment.account.name }" i18n-title title="Filter by this account">
+            <div class="chip two-lines">
+              <my-actor-avatar [actor]="comment.account" actorType="account" size="32"></my-actor-avatar>
+              <div>
+                {{ comment.account.displayName }}
+                <span>{{ comment.by }}</span>
+              </div>
             </div>
-          </div>
-        </a>
+          </a>
+
+          <my-account-block-badges [account]="comment.account" platformOnly="true"></my-account-block-badges>
+        </div>
       </td>
     }
 
@@ -78,7 +80,7 @@
           <a
             i18n-title title="Only display comments with this tag"
             class="pt-badge badge-secondary me-1"
-            [routerLink]="[ '.' ]" [queryParams]="{ 'search': buildSearchAutoTag(tag) }"
+            [routerLink]="[ '.' ]" [queryParams]="{ 'autoTagOneOf': tag }"
           >{{ tag }}</a>
         }
       </td>
@@ -97,8 +99,8 @@
     <div [innerHTML]="comment.textHtml"></div>
   </ng-template>
 
-  <ng-template #noResults let-search>
-    @if (search) {
+  <ng-template #noResults let-search="search" let-hasFilters="hasFilters">
+    @if (search || hasFilters) {
       <ng-container i18n>No comments found matching current filters.</ng-container>
     } @else {
       <ng-container i18n>No comments found.</ng-container>

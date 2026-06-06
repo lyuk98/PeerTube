@@ -1,7 +1,18 @@
 const path = require('path')
 
-async function register ({ registerHook, registerSetting, settingsManager, storageManager, peertubeHelpers }) {
+async function register ({ registerHook, registerSetting, settingsManager, storageManager, peertubeHelpers, getRouter }) {
   {
+    registerSetting({
+      name: 'test-setting',
+      label: 'Test setting',
+      type: 'input',
+      default: 'default-value'
+    })
+
+    const router = getRouter()
+    router.get('/get-setting', async (req, res) => {
+      res.json({ val: await settingsManager.getSetting('test-setting') })
+    })
     registerSetting({
       name: 'unique-setting',
       label: 'Unique setting',
@@ -331,6 +342,16 @@ async function register ({ registerHook, registerSetting, settingsManager, stora
     }
   })
 
+  registerHook({
+    target: 'filter:api.user.signup.requires-approval.result',
+    handler: ({ requiresApproval, registrationReason }, { body, headers, ip }) => {
+      return {
+        requiresApproval: ip !== undefined && body.username === 'waiting_john',
+        registrationReason: 'Marked as spam'
+      }
+    }
+  })
+
   {
     registerHook({
       target: 'filter:api.user.signup.allowed.result',
@@ -511,6 +532,8 @@ async function register ({ registerHook, registerSetting, settingsManager, stora
 
       'filter:api.overviews.videos.list.params',
       'filter:api.overviews.videos.list.result',
+
+      'filter:notifier.notification.enabled.result',
 
       'filter:job-queue.process.params',
       'filter:job-queue.process.result'

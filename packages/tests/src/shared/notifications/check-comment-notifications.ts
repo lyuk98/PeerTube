@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import { UserNotification, UserNotificationType } from '@peertube/peertube-models'
 import { expect } from 'chai'
@@ -72,7 +72,7 @@ export async function checkNewCommentOnMyVideo (
   }
 
   const commentUrl = approval
-    ? `${server.url}/my-account/videos/comments?search=heldForReview:true`
+    ? `${server.url}/my-account/videos/comments?isHeldForReview=true`
     : `${server.url}/w/${shortUUID};threadId=${threadId}`
 
   function emailNotificationFinder (email: object) {

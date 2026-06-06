@@ -5,6 +5,8 @@ import {
   ActivityPubActorType,
   ActorImageType,
   ActorImageType_Type,
+  ChangeOwnershipState,
+  ChangeOwnershipStateType,
   FollowState,
   JobType,
   NSFWPolicyType,
@@ -60,7 +62,7 @@ import { CONFIG, registerConfigChangedHandler } from './config.js'
 
 // ---------------------------------------------------------------------------
 
-export const LAST_MIGRATION_VERSION = 1001
+export const LAST_MIGRATION_VERSION = 1040
 
 // ---------------------------------------------------------------------------
 
@@ -110,6 +112,7 @@ export const SORTABLE_COLUMNS = {
   VIDEO_COMMENTS: [ 'createdAt' ],
 
   VIDEO_PASSWORDS: [ 'createdAt' ],
+  CHANGE_OWNERSHIP: [ 'createdAt' ],
 
   VIDEO_RATES: [ 'createdAt' ],
   BLACKLISTS: [ 'id', 'name', 'duration', 'views', 'likes', 'dislikes', 'uuid', 'createdAt' ],
@@ -188,9 +191,9 @@ export const ROUTE_CACHE_LIFETIME = {
 
 // Number of points we add/remove after a successful/bad request
 export const ACTOR_FOLLOW_SCORE = {
-  PENALTY: -10,
-  BONUS: 10,
-  BASE: 1000,
+  PENALTY: -1000,
+  BONUS: 1000,
+  BASE: 5000,
   MAX: 10000
 }
 
@@ -219,7 +222,7 @@ export const JOB_ATTEMPTS: { [id in JobType]: number } = {
   'video-import': 1,
   'email': 5,
   'actor-keys': 3,
-  'videos-views-stats': 1,
+  'videos-stats': 1,
   'activitypub-refresher': 1,
   'video-redundancy': 1,
   'video-live-ending': 1,
@@ -248,7 +251,7 @@ export const JOB_CONCURRENCY: { [id in Exclude<JobType, 'video-transcoding' | 'v
   'video-file-import': 1,
   'email': 5,
   'actor-keys': 1,
-  'videos-views-stats': 1,
+  'videos-stats': 1,
   'activitypub-refresher': 1,
   'video-redundancy': 1,
   'video-live-ending': 10,
@@ -279,7 +282,7 @@ export const JOB_TTL: { [id in JobType]: number } = {
   'video-import': CONFIG.IMPORT.VIDEOS.TIMEOUT,
   'email': 60000 * 10, // 10 minutes
   'actor-keys': 60000 * 20, // 20 minutes
-  'videos-views-stats': undefined, // Unlimited
+  'videos-stats': undefined, // Unlimited
   'activitypub-refresher': 60000 * 10, // 10 minutes
   'video-redundancy': 1000 * 3600 * 3, // 3 hours
   'video-live-ending': 1000 * 60 * 10, // 10 minutes
@@ -297,7 +300,7 @@ export const JOB_TTL: { [id in JobType]: number } = {
   'video-transcription': CONFIG.VIDEO_TRANSCRIPTION.TIMEOUT
 }
 export const REPEAT_JOBS: { [id in JobType]?: RepeatOptions } = {
-  'videos-views-stats': {
+  'videos-stats': {
     pattern: randomInt(1, 20) + ' * * * *' // Between 1-20 minutes past the hour
   },
   'activitypub-cleaner': {
@@ -320,7 +323,7 @@ export const JOB_REMOVAL_OPTIONS = {
 
     'activitypub-http-broadcast-parallel': parseDurationToMs('10 minutes'),
     'activitypub-http-unicast': parseDurationToMs('1 hour'),
-    'videos-views-stats': parseDurationToMs('3 hours'),
+    'videos-stats': parseDurationToMs('3 hours'),
     'activitypub-refresher': parseDurationToMs('10 hours')
   },
 
@@ -356,17 +359,17 @@ export const REQUEST_TIMEOUTS = {
 
 export const SCHEDULER_INTERVALS_MS = {
   RUNNER_JOB_WATCH_DOG: Math.min(CONFIG.REMOTE_RUNNERS.STALLED_JOBS.VOD, CONFIG.REMOTE_RUNNERS.STALLED_JOBS.LIVE),
-  ACTOR_FOLLOW_SCORES: 60000 * 60, // 1 hour
+  ACTOR_FOLLOW_SCORES: 60000 * 60 * 20, // 20 hours
   REMOVE_OLD_JOBS: 60000 * 60, // 1 hour
   UPDATE_VIDEOS: 60000, // 1 minute
   UPDATE_TOKEN_SESSION: 60000, // 1 minute
   YOUTUBE_DL_UPDATE: 60000 * 60 * 24, // 1 day
   GEO_IP_UPDATE: 60000 * 60 * 24, // 1 day
-  VIDEO_VIEWS_BUFFER_UPDATE: CONFIG.VIEWS.VIDEOS.LOCAL_BUFFER_UPDATE_INTERVAL,
+  VIDEO_STATS_BUFFER_UPDATE: CONFIG.VIEWS.VIDEOS.LOCAL_BUFFER_UPDATE_INTERVAL,
   CHECK_PLUGINS: CONFIG.PLUGINS.INDEX.CHECK_LATEST_VERSIONS_INTERVAL,
   CHECK_PEERTUBE_VERSION: 60000 * 60 * 24, // 1 day
   AUTO_FOLLOW_INDEX_INSTANCES: 60000 * 60 * 24, // 1 day
-  REMOVE_OLD_VIEWS: 60000 * 60 * 24, // 1 day
+  REMOVE_OLD_STATS: 60000 * 60 * 24, // 1 day
   REMOVE_OLD_HISTORY: 60000 * 60 * 24, // 1 day
   REMOVE_EXPIRED_USER_EXPORTS: 1000 * 3600, // 1 hour
   UPDATE_INBOX_STATS: 1000 * 60, // 1 minute
@@ -517,7 +520,10 @@ export const CONSTRAINTS_FIELDS = {
   VIDEO_STUDIO: {
     TASKS: { min: 1, max: 10 }, // Number of tasks
     CUT_TIME_START: { min: 0 }, // Value
-    CUT_TIME_END: { min: 1 } // Value
+    CUT_TIME_END: { min: 1 }, // Value
+    REMOVE_SEGMENT_TIME_START: { min: 0 }, // Value
+    REMOVE_SEGMENT_TIME_END: { min: 1 }, // Value
+    REMOVE_SEGMENTS: { min: 1, max: 10 } // Number of segments per remove-segments task
   },
   LOGS: {
     CLIENT_MESSAGE: { min: 1, max: 1000 }, // Length
@@ -548,7 +554,7 @@ export const CONSTRAINTS_FIELDS = {
     WORD: { min: 1, max: 100 } // Length
   },
   VIDEO_VIEW: {
-    UA_INFO: { min: 1, max: 200 } // Length
+    UA_INFO: { min: 1, max: 500 } // Length
   }
 }
 
@@ -558,6 +564,10 @@ export const VIEW_LIFETIME = {
   VIEWER_STATS: 60000 * 60 // 1 hour
 }
 export let VIEWER_SYNC_REDIS = 30000 // Sync viewer into redis
+
+export const STATS_LIFETIME = {
+  DOWNLOADS: 60000 * 60 // 1 hour
+}
 
 export const MAX_LOCAL_VIEWER_WATCH_SECTIONS = 100
 
@@ -618,6 +628,7 @@ export const VIDEO_LICENCES: { [id in VideoLicenceType]: string } = {
 }
 
 export const VIDEO_LANGUAGES: { [id: string]: string } = {}
+export const VIDEO_TEXT_LANGUAGES: { [id: string]: string } = {}
 
 export const VIDEO_PRIVACIES: { [id in VideoPrivacyType]: string } = {
   [VideoPrivacy.PUBLIC]: 'Public',
@@ -734,7 +745,8 @@ export const VIDEO_CHANNEL_ACTIVITY_ACTIONS: { [id in VideoChannelActivityAction
   [VideoChannelActivityAction.SEND_OWNERSHIP_REQUEST]: 'Send ownership request',
   [VideoChannelActivityAction.ACCEPT_OWNERSHIP_REQUEST]: 'Accept ownership request',
   [VideoChannelActivityAction.REFUSE_OWNERSHIP_REQUEST]: 'Refuse ownership request',
-  [VideoChannelActivityAction.UPDATE_EMBED_POLICY]: 'Update embed policy'
+  [VideoChannelActivityAction.UPDATE_EMBED_POLICY]: 'Update embed policy',
+  [VideoChannelActivityAction.DELETE_OWNERSHIP_REQUEST]: 'Delete ownership request'
 }
 
 export const VIDEO_CHANNEL_ACTIVITY_TARGETS: { [id in VideoChannelActivityTargetType]: string } = {
@@ -749,6 +761,12 @@ export const VIDEO_EMBED_PRIVACY_POLICIES: { [id in VideoEmbedPrivacyPolicyType]
   [VideoEmbedPrivacyPolicy.ALL_ALLOWED]: 'All allowed',
   [VideoEmbedPrivacyPolicy.ALLOWLIST]: 'Allowlist',
   [VideoEmbedPrivacyPolicy.REMOTE_RESTRICTIONS]: 'Remote restrictions'
+}
+
+export const CHANGE_OWNERSHIP_STATES: { [id in ChangeOwnershipStateType]: string } = {
+  [ChangeOwnershipState.PENDING]: 'Pending',
+  [ChangeOwnershipState.ACCEPTED]: 'Accepted',
+  [ChangeOwnershipState.REJECTED]: 'Rejected'
 }
 
 export const MIMETYPES = {
@@ -774,6 +792,8 @@ export const MIMETYPES = {
       'audio/m4a': '.m4a',
       'audio/x-m4a': '.m4a',
       'audio/mp4': '.m4a',
+
+      'audio/x-m4b': '.m4b',
 
       'audio/vnd.dolby.dd-raw': '.ac3',
       'audio/ac3': '.ac3'
@@ -930,6 +950,7 @@ export const NSFW_POLICY_TYPES: { [id: string]: NSFWPolicyType } = {
 
 export const USER_EXPORT_MAX_ITEMS = 1000
 export const USER_EXPORT_FILE_PREFIX = 'user-export-'
+export const USER_IMPORT_FILE_PREFIX = 'user-import-'
 
 // ---------------------------------------------------------------------------
 
@@ -981,7 +1002,7 @@ export const OBJECT_STORAGE_PROXY_PATHS = {
 // Cache control
 export const STATIC_MAX_AGE = {
   SERVER: '2h',
-  LAZY_SERVER: '2d',
+  LAZY_SERVER: '1y',
   CLIENT: '30d'
 }
 
@@ -1260,14 +1281,11 @@ if (process.env.PRODUCTION_CONSTANTS !== 'true') {
   if (isTestOrDevInstance()) {
     PRIVATE_RSA_KEY_SIZE = 1024
 
-    ACTOR_FOLLOW_SCORE.BASE = 20
-
     REMOTE_SCHEME.HTTP = 'http'
     REMOTE_SCHEME.WS = 'ws'
 
     STATIC_MAX_AGE.SERVER = '0'
 
-    SCHEDULER_INTERVALS_MS.ACTOR_FOLLOW_SCORES = 1000
     SCHEDULER_INTERVALS_MS.REMOVE_OLD_JOBS = 10000
     SCHEDULER_INTERVALS_MS.REMOVE_OLD_HISTORY = 5000
     SCHEDULER_INTERVALS_MS.UPDATE_VIDEOS = 5000
@@ -1276,7 +1294,7 @@ if (process.env.PRODUCTION_CONSTANTS !== 'true') {
     SCHEDULER_INTERVALS_MS.CHECK_PEERTUBE_VERSION = 2000
     SCHEDULER_INTERVALS_MS.UPDATE_TOKEN_SESSION = 2000
 
-    REPEAT_JOBS['videos-views-stats'] = { every: 5000 }
+    REPEAT_JOBS['videos-stats'] = { every: 5000 }
 
     REPEAT_JOBS['activitypub-cleaner'] = { every: 5000 }
     AP_CLEANER.PERIOD = 5000
@@ -1295,12 +1313,14 @@ if (process.env.PRODUCTION_CONSTANTS !== 'true') {
 
     PLUGIN_EXTERNAL_AUTH_TOKEN_LIFETIME = 5000
 
-    JOB_REMOVAL_OPTIONS.SUCCESS['videos-views-stats'] = 10000
+    JOB_REMOVAL_OPTIONS.SUCCESS['videos-stats'] = 10000
 
     VIEWER_SYNC_REDIS = 1000
   }
 
   if (isTestInstance()) {
+    SCHEDULER_INTERVALS_MS.ACTOR_FOLLOW_SCORES = 1000
+
     ACTIVITY_PUB.COLLECTION_ITEMS_PER_PAGE = 2
     ACTIVITY_PUB.ACTOR_REFRESH_INTERVAL = 10 * 1000 // 10 seconds
     ACTIVITY_PUB.VIDEO_REFRESH_INTERVAL = 10 * 1000 // 10 seconds
@@ -1335,7 +1355,15 @@ registerConfigChangedHandler(() => {
 export async function loadLanguages () {
   if (Object.keys(VIDEO_LANGUAGES).length !== 0) return
 
-  Object.assign(VIDEO_LANGUAGES, await buildLanguages())
+  const { allLanguages, nonTextLanguages } = await buildLanguages()
+
+  Object.assign(VIDEO_LANGUAGES, allLanguages)
+
+  for (const [ code, name ] of Object.entries(allLanguages)) {
+    if (!nonTextLanguages[code]) {
+      VIDEO_TEXT_LANGUAGES[code] = name
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1359,7 +1387,7 @@ export async function buildLanguages () {
 
   const languages: { [id: string]: string } = {}
 
-  const additionalLanguages = {
+  const nonTextLanguages = {
     sgn: true, // Sign languages (macro language)
     ase: true, // American sign language
     asq: true, // Austrian sign language
@@ -1378,6 +1406,12 @@ export async function buildLanguages () {
     rsl: true, // Russian sign language
     fse: true, // Finnish sign language
 
+    zxx: true // No linguistic content (ISO-639-2),
+  }
+
+  const additionalLanguages = {
+    ...nonTextLanguages,
+
     kab: true, // Kabyle
     gcf: true, // Guadeloupean
 
@@ -1387,8 +1421,6 @@ export async function buildLanguages () {
     tlh: true, // Klingon
     jbo: true, // Lojban
     avk: true, // Kotava
-
-    zxx: true, // No linguistic content (ISO-639-2),
 
     gsw: true // Swiss German (ISO-639-3)
   }
@@ -1427,7 +1459,7 @@ export async function buildLanguages () {
   languages['rcf'] = 'Réunion Creole French'
   languages['gcr'] = 'Guianese Creole French'
 
-  return languages
+  return { allLanguages: languages, nonTextLanguages }
 }
 
 // ---------------------------------------------------------------------------

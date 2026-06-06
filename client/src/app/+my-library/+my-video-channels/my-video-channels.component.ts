@@ -18,12 +18,12 @@ import { CollaboratorStateComponent } from '@app/shared/shared-main/channel/coll
 import { VideoChannel } from '@app/shared/shared-main/channel/video-channel.model'
 import { VideoChannelService } from '@app/shared/shared-main/channel/video-channel.service'
 import { maxBy, minBy } from '@peertube/peertube-core-utils'
+import { SelectOptionsItem } from '@pt-types'
 import { ChartData, ChartOptions, TooltipItem, TooltipModel } from 'chart.js'
 import { ChartModule } from 'primeng/chart'
-import { Subject, first, switchMap } from 'rxjs'
-import { SelectOptionsItem } from 'src/types'
+import { Subject, first, switchMap, tap } from 'rxjs'
 import { ActorAvatarComponent } from '../../shared/shared-actor-image/actor-avatar.component'
-import { AdvancedInputFilterComponent } from '../../shared/shared-forms/advanced-input-filter.component'
+import { SearchInputComponent } from '../../shared/shared-forms/search-input.component'
 import { GlobalIconComponent } from '../../shared/shared-icons/global-icon.component'
 import { DeleteButtonComponent } from '../../shared/shared-main/buttons/delete-button.component'
 import { EditButtonComponent } from '../../shared/shared-main/buttons/edit-button.component'
@@ -43,7 +43,7 @@ type DisplayFilter = 'all' | 'owned'
     FormsModule,
     RouterLink,
     ChannelsSetupMessageComponent,
-    AdvancedInputFilterComponent,
+    SearchInputComponent,
     InfiniteScrollerDirective,
     ActorAvatarComponent,
     EditButtonComponent,
@@ -134,24 +134,12 @@ export class MyVideoChannelsComponent implements OnInit {
     this.loadMoreVideoChannels()
   }
 
-  async deleteVideoChannel (videoChannel: VideoChannel) {
-    const res = await this.confirmService.confirmWithExpectedInput(
-      $localize`Do you really want to delete ${videoChannel.displayName}?` +
-        `<br />` +
-        formatICU(
-          // eslint-disable-next-line max-len
-          $localize`It will delete {count, plural, =1 {1 video} other {{count} videos}} uploaded in this channel, and you will not be able to create another channel or account with the same name (${videoChannel.name})!`,
-          { count: videoChannel.videosCount }
-        ),
-      $localize`Please type the name of the video channel (${videoChannel.name}) to confirm`,
-      videoChannel.name,
-      $localize`Delete`
-    )
-    if (res === false) return
-
-    this.videoChannelService.remove(videoChannel)
+  deleteVideoChannel (videoChannel: VideoChannel) {
+    this.videoChannelService.removeWithConfirmation(videoChannel)
       .subscribe({
-        next: () => {
+        next: removed => {
+          if (!removed) return
+
           this.videoChannels = this.videoChannels.filter(c => c.id !== videoChannel.id)
           this.notifier.success($localize`Video channel ${videoChannel.displayName} deleted.`)
 
@@ -174,51 +162,60 @@ export class MyVideoChannelsComponent implements OnInit {
     if (this.pagesDone.has(this.pagination.currentPage)) return
     this.pagesDone.add(this.pagination.currentPage)
 
-    return this.authService.userInformationLoaded
-      .pipe(
-        first(),
-        switchMap(() => {
-          return this.videoChannelService.listAccountChannels({
-            account: this.authService.getUser().account,
-            withStats: true,
-            search: this.search,
-            componentPagination: this.pagination,
-            includeCollaborations: this.displayFilter === 'all',
-            sort: '-updatedAt'
-          })
-        })
-      ).subscribe({
-        next: res => {
-          this.videoChannels = this.videoChannels.concat(res.data)
-          this.pagination.totalItems = res.total
+    const channelBaseOptions = {
+      account: this.authService.getUser().account,
+      search: this.search,
+      componentPagination: this.pagination,
+      includeCollaborations: this.displayFilter === 'all',
+      sort: '-updatedAt'
+    }
 
-          // chart data
-          this.videoChannelsChartData = this.videoChannels.map(v => ({
-            labels: v.viewsPerDay.map(day => day.date.toLocaleDateString()),
-            datasets: [
-              {
-                label: $localize`Views for the day`,
-                data: v.viewsPerDay.map(day => day.views),
-                fill: false,
-                borderColor: '#c6c6c6'
-              }
-            ],
+    const base = this.authService.userInformationLoaded.pipe(first())
 
-            total: v.viewsPerDay.map(day => day.views)
-              .reduce((p, c) => p + c, 0),
+    // Load channels without stats first to display something as soon as possible, then load stats in a second time
+    base.pipe(
+      switchMap(() => this.videoChannelService.listAccountChannels(channelBaseOptions)),
+      tap(res => {
+        this.videoChannels = this.videoChannels.concat(res.data)
+        this.pagination.totalItems = res.total
 
-            startDate: v.viewsPerDay.length !== 0
-              ? v.viewsPerDay[0].date.toLocaleDateString()
-              : ''
-          }))
+        this.onChannelDataSubject.next(res.data)
+      }),
+      switchMap(() => this.videoChannelService.listAccountChannels({ ...channelBaseOptions, withStats: true }))
+    ).subscribe({
+      next: res => {
+        for (const channelWithStats of res.data) {
+          const channel = this.videoChannels.find(c => c.id === channelWithStats.id)
 
-          this.buildChartOptions()
+          channel.viewsPerDay = channelWithStats.viewsPerDay
+          channel.videosCount = channelWithStats.videosCount
+          channel.totalViews = channelWithStats.totalViews
+        }
 
-          this.onChannelDataSubject.next(res.data)
-        },
+        this.videoChannelsChartData = this.videoChannels.map(v => ({
+          labels: v.viewsPerDay.map(day => day.date.toLocaleDateString()),
+          datasets: [
+            {
+              label: $localize`Views for the day`,
+              data: v.viewsPerDay.map(day => day.views),
+              fill: false,
+              borderColor: '#c6c6c6'
+            }
+          ],
 
-        error: err => this.notifier.handleError(err)
-      })
+          total: v.viewsPerDay.map(day => day.views)
+            .reduce((p, c) => p + c, 0),
+
+          startDate: v.viewsPerDay.length !== 0
+            ? v.viewsPerDay[0].date.toLocaleDateString()
+            : ''
+        }))
+
+        this.buildChartOptions()
+      },
+
+      error: err => this.notifier.handleError(err)
+    })
   }
 
   // ---------------------------------------------------------------------------

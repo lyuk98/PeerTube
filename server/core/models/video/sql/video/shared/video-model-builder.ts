@@ -23,6 +23,7 @@ import { VideoLiveModel } from '../../../video-live.js'
 import { VideoStreamingPlaylistModel } from '../../../video-streaming-playlist.js'
 import { VideoModel } from '../../../video.js'
 import { VideoTableAttributes } from './video-table-attributes.js'
+import { TableAttributeOptions } from './table-attributes-options.model.js'
 
 type SQLRow = { [id: string]: string | number }
 
@@ -54,6 +55,8 @@ export class VideoModelBuilder {
 
   private videos: VideoModel[]
 
+  private tableAttributeOptions: TableAttributeOptions
+
   private readonly buildOpts = { raw: true, isNewRecord: false }
 
   constructor (
@@ -68,8 +71,12 @@ export class VideoModelBuilder {
     include?: VideoIncludeType
     rowsWebVideoFiles?: SQLRow[]
     rowsStreamingPlaylist?: SQLRow[]
+
+    tableAttributes?: TableAttributeOptions
   }) {
-    const { rows, rowsWebVideoFiles, rowsStreamingPlaylist, include, addCaptions } = options
+    const { rows, rowsWebVideoFiles, rowsStreamingPlaylist, include, addCaptions, tableAttributes } = options
+
+    this.tableAttributeOptions = tableAttributes
 
     this.reinit()
 
@@ -168,7 +175,7 @@ export class VideoModelBuilder {
     this.videos = []
   }
 
-  private grabSeparateWebVideoFiles (rowsWebVideoFiles?: SQLRow[]) {
+  private grabSeparateWebVideoFiles (rowsWebVideoFiles: SQLRow[]) {
     if (!rowsWebVideoFiles) return
 
     for (const row of rowsWebVideoFiles) {
@@ -180,7 +187,7 @@ export class VideoModelBuilder {
     }
   }
 
-  private grabSeparateStreamingPlaylistFiles (rowsStreamingPlaylist?: SQLRow[]) {
+  private grabSeparateStreamingPlaylistFiles (rowsStreamingPlaylist: SQLRow[]) {
     if (!rowsStreamingPlaylist) return
 
     for (const row of rowsStreamingPlaylist) {
@@ -268,28 +275,50 @@ export class VideoModelBuilder {
   }
 
   private addActorAvatar (row: SQLRow, actorPrefix: string, actor: ActorModel) {
-    const avatarPrefix = `${actorPrefix}.Avatars`
-    const id = row[`${avatarPrefix}.id`]
-    const key = `${row.id}${id}`
-
-    if (!id || this.actorImagesDone.has(key)) return
-
-    const attributes = this.grab(row, this.tables.getAvatarAttributes(), avatarPrefix)
-    const avatarModel = new ActorImageModel(attributes, this.buildOpts)
-    actor.Avatars.push(avatarModel)
-
+    const key = `${actorPrefix}${row.id}`
+    if (this.actorImagesDone.has(key)) return
     this.actorImagesDone.add(key)
+
+    const avatars = row[`${actorPrefix}.AvatarsJSON`] as any || []
+    for (const avatar of avatars) {
+      const avatarModel = new ActorImageModel({
+        ...avatar,
+
+        createdAt: avatar.createdAt
+          ? new Date(avatar.createdAt)
+          : null,
+
+        updatedAt: avatar.updatedAt
+          ? new Date(avatar.updatedAt)
+          : null
+      }, this.buildOpts)
+
+      actor.Avatars.push(avatarModel)
+    }
   }
 
   private addThumbnail (row: SQLRow, videoModel: VideoModel) {
-    const id = row['Thumbnails.id']
-    if (!id || this.thumbnailsDone.has(id)) return
+    if (this.thumbnailsDone.has(videoModel.id)) return
 
-    const attributes = this.grab(row, this.tables.getThumbnailAttributes(), 'Thumbnails')
-    const thumbnailModel = new ThumbnailModel(attributes, this.buildOpts)
-    videoModel.Thumbnails.push(thumbnailModel)
+    const thumbnails = row['ThumbnailsJSON'] as any || []
 
-    this.thumbnailsDone.add(id)
+    for (const thumbnail of thumbnails) {
+      const thumbnailModel = new ThumbnailModel({
+        ...thumbnail,
+
+        createdAt: thumbnail.createdAt
+          ? new Date(thumbnail.createdAt)
+          : null,
+
+        updatedAt: thumbnail.updatedAt
+          ? new Date(thumbnail.updatedAt)
+          : null
+      }, this.buildOpts)
+
+      videoModel.Thumbnails.push(thumbnailModel)
+    }
+
+    this.thumbnailsDone.add(videoModel.id)
   }
 
   private addWebVideoFile (row: SQLRow, videoModel: VideoModel) {
@@ -337,7 +366,7 @@ export class VideoModelBuilder {
 
     if (!id || this.redundancyDone.has(id)) return
 
-    const attributes = this.grab(row, this.tables.getRedundancyAttributes(), redundancyPrefix)
+    const attributes = this.grab(row, this.tables.getRedundancyAttributes(this.tableAttributeOptions), redundancyPrefix)
     const redundancyModel = new VideoRedundancyModel(attributes, this.buildOpts)
     to.RedundancyVideos.push(redundancyModel)
 
@@ -451,6 +480,7 @@ export class VideoModelBuilder {
     if (!id || this.liveDone.has(id)) return
 
     const attributes = this.grab(row, this.tables.getLiveAttributes(), 'VideoLive')
+
     videoModel.VideoLive = new VideoLiveModel(attributes, this.buildOpts)
 
     this.liveDone.add(id)

@@ -17,6 +17,7 @@ import {
   isPluginTypeValid
 } from '../../helpers/custom-validators/plugins.js'
 import { SequelizeModel, getSort, throwIfNotValid } from '../shared/index.js'
+import { CONSTRAINTS_FIELDS } from '@server/initializers/constants.js'
 
 @DefaultScope(() => ({
   attributes: {
@@ -67,12 +68,12 @@ export class PluginModel extends SequelizeModel<PluginModel> {
 
   @AllowNull(true)
   @Is('PluginDescription', value => throwIfNotValid(value, isPluginDescriptionValid, 'description'))
-  @Column
+  @Column(DataType.STRING(CONSTRAINTS_FIELDS.PLUGINS.DESCRIPTION.max))
   declare description: string
 
   @AllowNull(false)
   @Is('PluginHomepage', value => throwIfNotValid(value, isPluginHomepage, 'homepage'))
-  @Column
+  @Column(DataType.STRING(CONSTRAINTS_FIELDS.COMMONS.URL.max))
   declare homepage: string
 
   @AllowNull(true)
@@ -130,9 +131,9 @@ export class PluginModel extends SequelizeModel<PluginModel> {
 
     return PluginModel.findOne(query)
       .then(p => {
-        if (!p?.settings || p.settings === undefined) {
+        if (p?.settings?.[settingName] === undefined) {
           const registered = registeredSettings.find(s => s.name === settingName)
-          if (!registered || registered.default === undefined) return undefined
+          if (registered?.default === undefined) return undefined
 
           return registered.default
         }
@@ -222,6 +223,19 @@ export class PluginModel extends SequelizeModel<PluginModel> {
 
     const options = {
       replacements: { pluginName, pluginType, key: jsonPath, data: JSON.stringify(data) },
+      type: QueryTypes.UPDATE
+    }
+
+    return PluginModel.sequelize.query(query, options)
+      .then(() => undefined)
+  }
+
+  static deleteData (pluginName: string, pluginType: PluginType_Type, key: string) {
+    const query = 'UPDATE "plugin" SET "storage" = "storage" - :key ' +
+      'WHERE "name" = :pluginName AND "type" = :pluginType'
+
+    const options = {
+      replacements: { pluginName, pluginType, key },
       type: QueryTypes.UPDATE
     }
 

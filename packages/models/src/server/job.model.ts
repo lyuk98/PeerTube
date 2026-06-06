@@ -29,7 +29,7 @@ export type JobType =
   | 'video-redundancy'
   | 'video-studio-edition'
   | 'video-transcoding'
-  | 'videos-views-stats'
+  | 'videos-stats'
   | 'generate-video-storyboard'
   | 'create-user-export'
   | 'import-user-archive'
@@ -113,6 +113,7 @@ export interface VideoImportYoutubeDLPayload extends VideoImportAbstractPayload 
 
 export interface VideoImportTorrentPayload extends VideoImportAbstractPayload {
   type: VideoImportTorrentPayloadType
+  torrentPath: string | null // null if magnet URI
 }
 
 export type VideoImportPayload = VideoImportYoutubeDLPayload | VideoImportTorrentPayload
@@ -254,8 +255,19 @@ export type VideoStudioTaskWatermarkPayload = {
     file: string
 
     watermarkSizeRatio: number
-    horitonzalMarginRatio: number
+    horizontalMarginRatio: number
     verticalMarginRatio: number
+  }
+}
+
+export type VideoStudioTaskRemoveSegmentsPayload = {
+  name: 'remove-segments'
+
+  options: {
+    segments: {
+      start: number
+      end: number
+    }[]
   }
 }
 
@@ -264,6 +276,7 @@ export type VideoStudioTaskPayload =
   | VideoStudioTaskIntroPayload
   | VideoStudioTaskOutroPayload
   | VideoStudioTaskWatermarkPayload
+  | VideoStudioTaskRemoveSegmentsPayload
 
 export interface VideoStudioEditionPayload {
   videoUUID: string

@@ -10,7 +10,8 @@ import {
 import { uuidToShort } from '@peertube/peertube-node-utils'
 import { VIDEO_CHANNEL_ACTIVITY_ACTIONS, VIDEO_CHANNEL_ACTIVITY_TARGETS } from '@server/initializers/constants.js'
 import {
-  MAccountActor,
+  MAccountNames,
+  MAccountUrl,
   MChannelId,
   MChannelSync,
   MUserAccountId,
@@ -308,8 +309,8 @@ export class VideoChannelActivityModel extends SequelizeModel<VideoChannelActivi
     action: VideoChannelActivityActionType
     user: MUserAccountId
     channel: MChannelId
-    video: MVideo
-    targetAccount: MAccountActor
+    video: Pick<MVideo, 'id' | 'name' | 'uuid' | 'url' | 'isLive'>
+    targetAccount: MAccountNames & MAccountUrl
     transaction: Transaction
   }) {
     const { action, user, channel, video, targetAccount, transaction } = options
@@ -335,6 +336,37 @@ export class VideoChannelActivityModel extends SequelizeModel<VideoChannelActivi
       accountId: user.Account.id,
       videoChannelId: channel.id,
       videoId: video.id
+    }, { transaction })
+  }
+
+  static async addChannelOwnershipChangeActivity (options: {
+    action: VideoChannelActivityActionType
+    user: MUserAccountId
+    channel: MChannelActivityFormattable['VideoChannel']
+    targetAccount: MAccountNames & MAccountUrl
+    transaction: Transaction
+  }) {
+    const { action, user, channel, targetAccount, transaction } = options
+
+    return this.create({
+      action,
+      targetType: VideoChannelActivityTarget.CHANNEL,
+      data: {
+        channel: {
+          id: channel.id,
+          name: channel.Actor.preferredUsername,
+          displayName: channel.name,
+          url: channel.Actor.url
+        },
+        targetAccount: {
+          username: targetAccount.Actor.preferredUsername,
+          displayName: targetAccount.name,
+          url: targetAccount.Actor.url
+        }
+      },
+      details: null,
+      accountId: user.Account.id,
+      videoChannelId: channel.id
     }, { transaction })
   }
 
@@ -509,7 +541,7 @@ export class VideoChannelActivityModel extends SequelizeModel<VideoChannelActivi
   formatVideoImport (this: MChannelActivityFormattable): VideoChannelActivity['videoImport'] {
     if (this.targetType !== VideoChannelActivityTarget.VIDEO_IMPORT) return null
 
-    if (this.VideoImport && this.VideoImport.Video) {
+    if (this.VideoImport?.Video) {
       return {
         id: this.VideoImport.id,
         name: this.VideoImport.Video.name,

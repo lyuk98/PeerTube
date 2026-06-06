@@ -17,6 +17,7 @@ import { VideoBlacklistModel } from '../video/video-blacklist.js'
 import { VideoCaptionModel } from '../video/video-caption.js'
 import { VideoChannelCollaboratorModel } from '../video/video-channel-collaborator.js'
 import { VideoCommentModel } from '../video/video-comment.js'
+import { ChangeOwnershipModel } from '../video/change-ownership.js'
 import { VideoImportModel } from '../video/video-import.js'
 import { VideoModel } from '../video/video.js'
 import { UserNotificationListQueryBuilder } from './sql/user-notification/user-notification-list-query-builder.js'
@@ -121,6 +122,14 @@ import { UserModel } from './user.js'
       fields: [ 'videoCaptionId' ],
       where: {
         videoCaptionId: {
+          [Op.ne]: null
+        }
+      }
+    },
+    {
+      fields: [ 'changeOwnershipId' ],
+      where: {
+        changeOwnershipId: {
           [Op.ne]: null
         }
       }
@@ -306,6 +315,18 @@ export class UserNotificationModel extends SequelizeModel<UserNotificationModel>
   })
   declare VideoChannelCollaborator: Awaited<VideoChannelCollaboratorModel>
 
+  @ForeignKey(() => ChangeOwnershipModel)
+  @Column
+  declare changeOwnershipId: number
+
+  @BelongsTo(() => ChangeOwnershipModel, {
+    foreignKey: {
+      allowNull: true
+    },
+    onDelete: 'cascade'
+  })
+  declare ChangeOwnership: Awaited<ChangeOwnershipModel>
+
   static listForApi (options: {
     userId: number
     start: number
@@ -426,6 +447,14 @@ export class UserNotificationModel extends SequelizeModel<UserNotificationModel>
           `INNER JOIN "videoChannel" ON "videoChannel".id = "videoChannelCollaborator"."channelId" ` +
           `INNER JOIN "account" ON "videoChannel"."accountId" = "account"."id" ` +
           `INNER JOIN actor ON "actor"."accountId" = "account"."id" `
+      ),
+
+      // Remove notifications from muted accounts that sent ownership changer requests
+      buildAccountWhereQuery(
+        `SELECT "userNotification"."id" FROM "userNotification" ` +
+          `INNER JOIN "changeOwnership" ON "changeOwnership".id = "userNotification"."changeOwnershipId" ` +
+          `INNER JOIN "account" ON "changeOwnership"."initiatorAccountId" = "account"."id" ` +
+          `INNER JOIN actor ON "actor"."accountId" = "account"."id" `
       )
     ]
 
@@ -542,6 +571,26 @@ export class UserNotificationModel extends SequelizeModel<UserNotificationModel>
       }
       : undefined
 
+    const changeOwnership = this.ChangeOwnership
+      ? {
+        id: this.ChangeOwnership.id,
+        state: {
+          id: this.ChangeOwnership.state,
+          label: ChangeOwnershipModel.getStateLabel(this.ChangeOwnership.state)
+        },
+        initiatorAccount: this.formatActor(this.ChangeOwnership.Initiator),
+        nextOwnerAccount: this.formatActor(this.ChangeOwnership.NextOwner),
+
+        video: this.ChangeOwnership.Video
+          ? this.formatVideo(this.ChangeOwnership.Video)
+          : undefined,
+
+        channel: this.ChangeOwnership.VideoChannel
+          ? this.formatActor(this.ChangeOwnership.VideoChannel)
+          : undefined
+      }
+      : undefined
+
     return {
       id: this.id,
       type: this.type,
@@ -559,6 +608,7 @@ export class UserNotificationModel extends SequelizeModel<UserNotificationModel>
       registration,
       videoCaption,
       videoChannelCollaborator,
+      changeOwnership,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString()
     }

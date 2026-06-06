@@ -239,8 +239,7 @@ tags:
       Favor using resumable uploads in any of the following cases:
       - You are transferring large files
       - The likelihood of a network interruption is high
-      - Uploads are originating from a device with a low-bandwidth or unstable Internet connection,
-        such as a mobile device
+      - Uploads are originating from a device with a low-bandwidth or unstable Internet connection, such as a mobile device
 
       ### Import
 
@@ -287,6 +286,8 @@ tags:
     description: Server syndication feeds of videos
   - name: Video Download
     description: Download video files
+  - name: Logs
+    description: Operations dealing with client, server and audit logs.
   - name: Search
     description: |
       The search helps to find _videos_ or _channels_ from within the instance and beyond.
@@ -295,7 +296,7 @@ tags:
       the advanced search.
 
       Administrators can also enable the use of a remote search system, indexing
-      videos and channels not could be not federated by the instance.
+      videos and channels that may not be federated by the instance.
   - name: Homepage
     description: Get and update the custom homepage
   - name: Video Mirroring
@@ -306,13 +307,21 @@ tags:
   - name: Stats
     description: |
       Statistics
+  - name: Contact
+    description: Send a message to the instance administrators.
+  - name: Debug
+    description: Administrative debug endpoints.
   - name: Runner Registration Token
     description: |
-      Manage runner registration token
+      Manage runner registration tokens.
+  - name: Runner Jobs
+    description: Manage runner jobs and runner-side job execution.
+  - name: Runners
+    description: Register, list and remove remote runners.
   - name: Video Passwords
-    description: Operation on video passwords
+    description: Operations on video passwords.
   - name: Client Config
-    description: Configuration of the web client
+    description: Configuration of the web client.
 
 x-tagGroups:
   - name: Static endpoints
@@ -350,7 +359,7 @@ x-tagGroups:
       - Video Rates
       - Video Playlists
       - Video Stats
-      - Video Ownership Change
+      - Ownership Change
       - Video Mirroring
       - Video Files
       - Video Transcoding
@@ -454,7 +463,7 @@ paths:
         '404':
           description: not found
 
-  '/download/videos/generate/{videoId}':
+  '/download/videos/generate/{videoIdOrUUID}':
     get:
       tags:
         - Video Download
@@ -462,12 +471,7 @@ paths:
       description: Generate a mp4 container that contains at most 1 video stream and at most 1 audio stream.
         Mainly used to merge the HLS audio only video file and the HLS video only resolution file.
       parameters:
-        - name: videoId
-          in: path
-          required: true
-          description: The video id
-          schema:
-            $ref: '#/components/schemas/Video/properties/id'
+        - $ref: '#/components/parameters/videoIdOrUUID'
         - name: videoFileIds
           in: query
           required: true
@@ -539,6 +543,7 @@ paths:
             application/xml:
               schema:
                 $ref: '#/components/schemas/VideoCommentsForXML'
+
               examples:
                 nightly:
                   externalValue: https://peertube2.cpy.re/feeds/video-comments.xml?scope=local
@@ -807,6 +812,7 @@ paths:
         - $ref: '#/components/parameters/hasWebVideoFiles'
         - $ref: '#/components/parameters/host'
         - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/stateOneOfVideo'
         - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/excludeAlreadyWatched'
         - $ref: '#/components/parameters/search'
@@ -1452,6 +1458,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/usersSearch'
         - $ref: '#/components/parameters/usersBlocked'
+        - $ref: '#/components/parameters/usersRole'
         - $ref: '#/components/parameters/start'
         - $ref: '#/components/parameters/count'
         - $ref: '#/components/parameters/usersSort'
@@ -2363,7 +2370,7 @@ paths:
                     description: The user video quota used today in bytes
                     example: 1681014151
 
-  '/api/v1/users/me/videos/{videoId}/rating':
+  '/api/v1/users/me/videos/{videoIdOrUUID}/rating':
     get:
       summary: Get rate of my user for a video
       security:
@@ -2372,12 +2379,7 @@ paths:
         - My User
         - Video Rates
       parameters:
-        - name: videoId
-          in: path
-          required: true
-          description: The video id
-          schema:
-            $ref: '#/components/schemas/Video/properties/id'
+        - $ref: '#/components/parameters/videoIdOrUUID'
       responses:
         '200':
           description: successful operation
@@ -2418,6 +2420,7 @@ paths:
         - $ref: '#/components/parameters/hasWebVideoFiles'
         - $ref: '#/components/parameters/host'
         - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/stateOneOfVideo'
         - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/excludeAlreadyWatched'
         - $ref: '#/components/parameters/search'
@@ -2525,6 +2528,7 @@ paths:
         - $ref: '#/components/parameters/hasWebVideoFiles'
         - $ref: '#/components/parameters/host'
         - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/stateOneOfVideo'
         - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/excludeAlreadyWatched'
         - $ref: '#/components/parameters/search'
@@ -2691,7 +2695,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/VideoListResponse'
 
-  /api/v1/users/me/history/videos/{videoId}:
+  /api/v1/users/me/history/videos/{videoIdOrUUID}:
     delete:
       summary: Delete history element
       security:
@@ -2699,11 +2703,7 @@ paths:
       tags:
         - My History
       parameters:
-        - name: videoId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/Video/properties/id'
+        - $ref: '#/components/parameters/videoIdOrUUID'
       responses:
         '204':
           description: successful operation
@@ -2789,8 +2789,20 @@ paths:
       tags:
         - Register
       responses:
-        '204':
+        '200':
           description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    type: object
+                    properties:
+                      id:
+                        $ref: '#/components/schemas/UserRegistrationState'
+                      label:
+                        type: string
         '400':
           description: request error
         '403':
@@ -2817,7 +2829,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserRegistration'
+                type: object
+                properties:
+                  state:
+                    type: object
+                    properties:
+                      id:
+                        $ref: '#/components/schemas/UserRegistrationState'
+                      label:
+                        type: string
         '400':
           description: request error or signup approval is not enabled on the instance
         '403':
@@ -2917,6 +2937,13 @@ paths:
             - createdAt
             - state
             - -state
+        - name: stateOneOf
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/UserRegistrationState'
       responses:
         '200':
           description: successful operation
@@ -2936,28 +2963,70 @@ paths:
   /api/v1/videos/ownership:
     get:
       summary: List video ownership changes
+      description: List ownership change requests received by the authenticated user and requests sent by a channel managed by the authenticated user
       tags:
-        - Video Ownership Change
+        - Ownership Change
       security:
         - OAuth2: []
+      parameters:
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/count'
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - -createdAt
+              - createdAt
       responses:
         '200':
           description: successful operation
+          content:
+            'application/json':
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 1
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChangeOwnership'
+        '401':
+          description: authentication required
 
   '/api/v1/videos/ownership/{id}/accept':
     post:
       summary: Accept ownership change request
       tags:
-        - Video Ownership Change
+        - Ownership Change
       security:
         - OAuth2: []
       parameters:
         - $ref: '#/components/parameters/idOrUUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channelId:
+                  type: integer
+                  description: Target channel id owned by the authenticated user
+              required:
+                - channelId
       responses:
         '204':
           description: successful operation
+        '400':
+          description: ownership change request already accepted/refused or invalid target channel id
         '403':
           description: cannot terminate an ownership change of another user
+        '413':
+          description: quota exceeded for the target account/channel
         '404':
           description: video ownership change not found
 
@@ -2965,7 +3034,7 @@ paths:
     post:
       summary: Refuse ownership change request
       tags:
-        - Video Ownership Change
+        - Ownership Change
       security:
         - OAuth2: []
       parameters:
@@ -2973,20 +3042,88 @@ paths:
       responses:
         '204':
           description: successful operation
+        '400':
+          description: ownership change request already accepted/refused
         '403':
           description: cannot terminate an ownership change of another user
         '404':
           description: video ownership change not found
 
-  '/api/v1/videos/{id}/give-ownership':
-    post:
-      summary: Request ownership change
+  '/api/v1/videos/ownership/{id}':
+    delete:
+      summary: Delete ownership change request
+      description: Delete an ownership change request. Only users who can manage the video can delete the request.
       tags:
-        - Video Ownership Change
+        - Ownership Change
       security:
         - OAuth2: []
       parameters:
         - $ref: '#/components/parameters/idOrUUID'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: ownership request already accepted or refused
+        '403':
+          description: only users who can manage the video can delete an ownership change request
+        '404':
+          description: video ownership change not found
+
+  '/api/v1/videos/{videoIdOrUUID}/ownership':
+    get:
+      summary: List ownership change requests for a video
+      description: List all ownership change requests for a specific video. The authenticated user must be able to manage the video.
+      tags:
+        - Ownership Change
+      security:
+        - OAuth2: []
+      parameters:
+        - $ref: '#/components/parameters/videoIdOrUUID'
+        - name: state
+          in: query
+          required: false
+          description: Filter by ownership change state
+          schema:
+            $ref: '#/components/schemas/ChangeOwnershipState'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/count'
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - -createdAt
+              - createdAt
+      responses:
+        '200':
+          description: successful operation
+          content:
+            'application/json':
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 1
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChangeOwnership'
+        '403':
+          description: cannot manage the video
+        '404':
+          description: video not found
+
+  '/api/v1/videos/{videoIdOrUUID}/give-ownership':
+    post:
+      summary: Request ownership change
+      tags:
+        - Ownership Change
+      security:
+        - OAuth2: []
+      parameters:
+        - $ref: '#/components/parameters/videoIdOrUUID'
       requestBody:
         required: true
         content:
@@ -3002,9 +3139,188 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: changing video ownership to a remote account is not supported yet
+          description: changing video ownership to a remote account is not supported yet or there is already a pending ownership request
+        '403':
+          description: cannot change ownership of this video
         '404':
           description: video not found
+
+  /api/v1/video-channels/ownership:
+    get:
+      summary: List channel ownership changes
+      description: List ownership change requests received by the authenticated user and requests sent by channels managed by the authenticated user
+      tags:
+        - Ownership Change
+      security:
+        - OAuth2: []
+      parameters:
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/count'
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - -createdAt
+              - createdAt
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 1
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChangeOwnership'
+        '401':
+          description: authentication required
+
+  '/api/v1/video-channels/ownership/{id}/accept':
+    post:
+      summary: Accept channel ownership change request
+      tags:
+        - Ownership Change
+      security:
+        - OAuth2: []
+      parameters:
+        - $ref: '#/components/parameters/idOrUUID'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: ownership change request already accepted/refused or request type mismatch
+        '403':
+          description: cannot terminate an ownership change of another user
+        '404':
+          description: channel ownership change not found
+        '409':
+          description: cannot accept transferring the last channel of the initiator account
+        '413':
+          description: quota exceeded for the target account
+
+  '/api/v1/video-channels/ownership/{id}/refuse':
+    post:
+      summary: Refuse channel ownership change request
+      tags:
+        - Ownership Change
+      security:
+        - OAuth2: []
+      parameters:
+        - $ref: '#/components/parameters/idOrUUID'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: ownership change request already accepted/refused or request type mismatch
+        '403':
+          description: cannot terminate an ownership change of another user
+        '404':
+          description: channel ownership change not found
+
+  '/api/v1/video-channels/ownership/{id}':
+    delete:
+      summary: Delete channel ownership change request
+      description: Delete a channel ownership change request. Only channel owners can delete the request.
+      tags:
+        - Ownership Change
+      security:
+        - OAuth2: []
+      parameters:
+        - $ref: '#/components/parameters/idOrUUID'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: ownership request already accepted/refused or request type mismatch
+        '403':
+          description: only channel owners can delete a channel ownership change request
+        '404':
+          description: channel ownership change not found
+
+  '/api/v1/video-channels/{channelHandle}/ownership':
+    get:
+      summary: List ownership change requests for a channel
+      description: List all ownership change requests for a specific channel. The authenticated user must be able to manage the channel.
+      tags:
+        - Ownership Change
+      security:
+        - OAuth2: []
+      parameters:
+        - $ref: '#/components/parameters/channelHandle'
+        - name: state
+          in: query
+          required: false
+          description: Filter by ownership change state
+          schema:
+            $ref: '#/components/schemas/ChangeOwnershipState'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/count'
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - -createdAt
+              - createdAt
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 1
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChangeOwnership'
+        '400':
+          description: invalid parameters
+        '403':
+          description: cannot manage the channel
+        '404':
+          description: channel not found
+
+  '/api/v1/video-channels/{channelHandle}/give-ownership':
+    post:
+      summary: Request channel ownership change
+      tags:
+        - Ownership Change
+      security:
+        - OAuth2: []
+      parameters:
+        - $ref: '#/components/parameters/channelHandle'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+              required:
+                - username
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: changing channel ownership to this target is invalid or there is already a pending ownership request
+        '403':
+          description: cannot change ownership of this channel
+        '404':
+          description: channel not found
 
   '/api/v1/videos/{id}/token':
     post:
@@ -3083,6 +3399,7 @@ paths:
         - $ref: '#/components/parameters/hasWebVideoFiles'
         - $ref: '#/components/parameters/host'
         - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/stateOneOfVideo'
         - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/excludeAlreadyWatched'
         - $ref: '#/components/parameters/search'
@@ -3138,6 +3455,15 @@ paths:
       operationId: getLanguages
       tags:
         - Video
+      parameters:
+        - name: scope
+          in: query
+          description: "**PeerTube >= 8.2** Filter languages by scope. Use `subtitle` to exclude sign languages and other languages that don't make sense for subtitles."
+          required: false
+          schema:
+            type: string
+            enum:
+              - subtitle
       responses:
         '200':
           description: successful operation
@@ -3303,28 +3629,6 @@ paths:
       responses:
         '204':
           description: successful operation
-
-  '/api/v1/videos/{id}/description':
-    get:
-      summary: Get complete video description
-      operationId: getVideoDesc
-      tags:
-        - Video
-      parameters:
-        - $ref: '#/components/parameters/idOrUUID'
-        - $ref: '#/components/parameters/videoPasswordHeader'
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                nullable: true
-                type: string
-                minLength: 3
-                maxLength: 10000
-                example: |
-                  **[Want to help to translate this video?](https://weblate.framasoft.org/projects/what-is-peertube-video/)**\r\n\r\n**Take back the control of your videos! [#JoinPeertube](https://joinpeertube.org)**
 
   '/api/v1/videos/{id}/views':
     post:
@@ -4767,7 +5071,7 @@ paths:
         - $ref: '#/components/parameters/count'
         - $ref: '#/components/parameters/sort'
       responses:
-        '204':
+        '200':
           description: successful operation
           content:
             application/json:
@@ -4824,7 +5128,7 @@ paths:
         '400':
           description: video is not password protected
 
-  /api/v1/videos/{id}/passwords/{videoPasswordId}:
+  /api/v1/videos/{id}/passwords/{passwordId}:
     delete:
       summary: Delete a video password
       description: "**PeerTube >= 6.0**"
@@ -4836,7 +5140,7 @@ paths:
         - Video Passwords
       parameters:
         - $ref: '#/components/parameters/idOrUUID'
-        - $ref: '#/components/parameters/videoPasswordId'
+        - $ref: '#/components/parameters/passwordId'
       responses:
         '204':
           description: successful operation
@@ -4963,6 +5267,7 @@ paths:
         - $ref: '#/components/parameters/hasWebVideoFiles'
         - $ref: '#/components/parameters/host'
         - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/stateOneOfVideo'
         - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/excludeAlreadyWatched'
         - $ref: '#/components/parameters/search'
@@ -5957,6 +6262,7 @@ paths:
         - $ref: '#/components/parameters/autoTagOneOfComment'
         - $ref: '#/components/parameters/isLocal'
         - $ref: '#/components/parameters/onLocalVideo'
+        - $ref: '#/components/parameters/includeMuted'
 
       responses:
         '200':
@@ -6179,6 +6485,7 @@ paths:
         - $ref: '#/components/parameters/hasWebVideoFiles'
         - $ref: '#/components/parameters/host'
         - $ref: '#/components/parameters/autoTagOneOfVideo'
+        - $ref: '#/components/parameters/stateOneOfVideo'
         - $ref: '#/components/parameters/privacyOneOf'
         - $ref: '#/components/parameters/excludeAlreadyWatched'
         - name: startDate
@@ -6801,6 +7108,115 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerStats'
+
+  /api/v1/server/contact:
+    post:
+      tags:
+        - Contact
+      summary: Contact the instance administrators
+      operationId: contactAdministrator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fromName:
+                  type: string
+                  description: Display name of the sender
+                fromEmail:
+                  type: string
+                  format: email
+                  description: Email address of the sender
+                subject:
+                  type: string
+                  description: Subject of the message
+                body:
+                  type: string
+                  description: Message body
+              required:
+                - fromName
+                - fromEmail
+                - body
+      responses:
+        '204':
+          description: successful operation
+        '403':
+          description: a contact form was already sent recently from this IP address
+        '409':
+          description: contact form or SMTP is not configured on this instance
+
+  /api/v1/server/debug:
+    get:
+      tags:
+        - Debug
+      summary: Get debug information
+      description: Retrieve internal debug information for administrators.
+      operationId: getDebug
+      security:
+        - OAuth2:
+          - admin
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ip:
+                    type: string
+                  activityPubMessagesWaiting:
+                    type: integer
+
+  /api/v1/server/debug/run-command:
+    post:
+      tags:
+        - Debug
+      summary: Run a debug command
+      description: Run an internal debug command as an administrator.
+      operationId: runDebugCommand
+      security:
+        - OAuth2:
+          - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    command:
+                      type: string
+                      enum:
+                        - remove-dandling-resumable-uploads
+                        - remove-expired-user-exports
+                        - process-video-stats-buffer
+                        - process-video-viewers
+                        - process-update-videos-scheduler
+                        - process-video-channel-sync-latest
+                        - process-remove-old-stats
+                  required:
+                    - command
+                - type: object
+                  properties:
+                    command:
+                      type: string
+                      enum:
+                        - test-emails
+                    email:
+                      type: string
+                      format: email
+                  required:
+                    - command
+                    - email
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid command or invalid email
 
   /api/v1/server/logs/client:
     post:
@@ -7517,8 +7933,186 @@ paths:
         '204':
           description: successful operation
 
+  /api/v1/runners/jobs/{jobUUID}/files/videos/{videoIdOrUUID}/max-quality/audio:
+    post:
+      summary: Download the max-quality audio file for a job video
+      description: API used by PeerTube runners.
+      tags:
+        - Runner Jobs
+      parameters:
+        - $ref: '#/components/parameters/jobUUID'
+        - $ref: '#/components/parameters/videoIdOrUUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                runnerToken:
+                  type: string
+                jobToken:
+                  type: string
+              required:
+                - runnerToken
+                - jobToken
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '403':
+          description: the job is not associated with this video
+
+  /api/v1/runners/jobs/{jobUUID}/files/videos/{videoIdOrUUID}/max-quality:
+    post:
+      summary: Download the max-quality video file for a job video
+      description: API used by PeerTube runners.
+      tags:
+        - Runner Jobs
+      parameters:
+        - $ref: '#/components/parameters/jobUUID'
+        - $ref: '#/components/parameters/videoIdOrUUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                runnerToken:
+                  type: string
+                jobToken:
+                  type: string
+              required:
+                - runnerToken
+                - jobToken
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '403':
+          description: the job is not associated with this video
+
+  /api/v1/runners/jobs/{jobUUID}/files/videos/{videoIdOrUUID}/thumbnails/max-quality:
+    post:
+      summary: Download the max-quality thumbnail for a job video
+      description: API used by PeerTube runners.
+      tags:
+        - Runner Jobs
+      parameters:
+        - $ref: '#/components/parameters/jobUUID'
+        - $ref: '#/components/parameters/videoIdOrUUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                runnerToken:
+                  type: string
+                jobToken:
+                  type: string
+              required:
+                - runnerToken
+                - jobToken
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '403':
+          description: the job is not associated with this video
+
+  /api/v1/runners/jobs/{jobUUID}/files/videos/{videoIdOrUUID}/previews/max-quality:
+    post:
+      summary: Download the max-quality preview for a job video
+      description: API used by PeerTube runners.
+      tags:
+        - Runner Jobs
+      parameters:
+        - $ref: '#/components/parameters/jobUUID'
+        - $ref: '#/components/parameters/videoIdOrUUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                runnerToken:
+                  type: string
+                jobToken:
+                  type: string
+              required:
+                - runnerToken
+                - jobToken
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '403':
+          description: the job is not associated with this video
+
+  /api/v1/runners/jobs/{jobUUID}/files/videos/{videoIdOrUUID}/studio/task-files/{filename}:
+    post:
+      summary: Download a video studio task file for a job video
+      description: API used by PeerTube runners.
+      tags:
+        - Runner Jobs
+      parameters:
+        - $ref: '#/components/parameters/jobUUID'
+        - $ref: '#/components/parameters/videoIdOrUUID'
+        - name: filename
+          in: path
+          required: true
+          description: Name of the task file to download
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                runnerToken:
+                  type: string
+                jobToken:
+                  type: string
+              required:
+                - runnerToken
+                - jobToken
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: the file is not associated with this edition task
+        '403':
+          description: the job is not associated with this video
+
   /api/v1/runners/jobs/{jobUUID}/cancel:
-    get:
+    post:
       summary: Cancel a job
       security:
         - OAuth2:
@@ -7566,6 +8160,13 @@ paths:
             type: array
             items:
               $ref: '#/components/schemas/RunnerJobState'
+        - name: typeOneOf
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/RunnerJobType'
       responses:
         '200':
           description: successful operation
@@ -7914,9 +8515,11 @@ paths:
       tags:
         - Client Config
       summary: Update client language
-      description: Set a cookie so that, the next time the client refreshes the HTML of the web interface, PeerTube will use the next language
+      description: Set a cookie so that the next time the client refreshes the HTML of the web interface, PeerTube uses the selected language.
       operationId: updateClientLanguage
+      deprecated: true
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -7924,7 +8527,33 @@ paths:
               properties:
                 language:
                   type: string
+                  nullable: true
                   description: Language code to set
+                  example: 'en-US'
+              required:
+                - language
+      responses:
+        '204':
+          description: successful operation
+
+  /api/v1/client-config/update-interface-language:
+    post:
+      tags:
+        - Client Config
+      summary: Update client language
+      description: Set a cookie so that the next time the client refreshes the HTML of the web interface, PeerTube uses the selected language.
+      operationId: updateClientInterfaceLanguage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                language:
+                  type: string
+                  nullable: true
+                  description: Language code to set, or `null` to clear the preference
                   example: 'en-US'
               required:
                 - language
@@ -7936,7 +8565,7 @@ paths:
     get:
       tags:
         - Video Channels
-      summary: "*List channel collaborators"
+      summary: List channel collaborators
       description: "**PeerTube >= 8.0**"
       operationId: listVideoChannelCollaborators
       security:
@@ -8191,6 +8820,13 @@ components:
       description: Filter results down to (un)banned users
       schema:
         type: boolean
+    usersRole:
+      name: role
+      in: query
+      required: false
+      description: Filter results down to users with a specific role
+      schema:
+        $ref: '#/components/schemas/UserRole'
     usersSort:
       name: sort
       in: query
@@ -8316,6 +8952,16 @@ components:
       description: Playlist id
       schema:
         $ref: '#/components/schemas/VideoPlaylist/properties/id'
+    videoIdOrUUID:
+      name: videoIdOrUUID
+      in: path
+      required: true
+      description: Video id or UUID
+      schema:
+        oneOf:
+          - $ref: '#/components/schemas/id'
+          - $ref: '#/components/schemas/UUIDv4'
+          - $ref: '#/components/schemas/shortUUID'
     playlistElementId:
       name: playlistElementId
       in: path
@@ -8459,6 +9105,19 @@ components:
         - type: array
           items:
             type: string
+      style: form
+      explode: true
+    stateOneOfVideo:
+      name: stateOneOf
+      in: query
+      required: false
+      description: "**PeerTube >= 8.2** **Admins and moderators only** filter on videos that have one of these states"
+      schema:
+        oneOf:
+        - $ref: '#/components/schemas/VideoStateConstant/properties/id'
+        - type: array
+          items:
+            $ref: '#/components/schemas/VideoStateConstant/properties/id'
       style: form
       explode: true
     channelNameOneOf:
@@ -8664,7 +9323,7 @@ components:
           - video-transcoding
           - video-file-import
           - video-import
-          - videos-views-stats
+          - videos-stats
           - activitypub-refresher
           - video-redundancy
           - video-live-ending
@@ -8733,8 +9392,8 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/UUIDv4'
-    videoPasswordId:
-      name: videoPasswordId
+    passwordId:
+      name: passwordId
       in: path
       required: true
       description: The video password id
@@ -8747,6 +9406,13 @@ components:
       schema:
         type: boolean
       description: 'Display only objects of local or remote videos'
+    includeMuted:
+      name: includeMuted
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: '**PeerTube >= 8.2** Include comments from muted accounts'
     videoChannelId:
       name: videoChannelId
       in: query
@@ -9258,6 +9924,35 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ActorImage'
+
+    VideoSummary:
+      properties:
+        id:
+          description: object id for the video
+          allOf:
+            - $ref: '#/components/schemas/id'
+        uuid:
+          description: universal identifier for the video, that can be used across instances
+          allOf:
+            - $ref: '#/components/schemas/UUIDv4'
+        shortUUID:
+          allOf:
+            - $ref: '#/components/schemas/shortUUID'
+        name:
+          type: string
+        isLive:
+          type: boolean
+        nsfw:
+          type: boolean
+        publishedAt:
+          type: string
+          format: date-time
+        thumbnails:
+          description: "**PeerTube >= 8.1** Array of thumbnails for the video"
+          type: array
+        channel:
+          $ref: '#/components/schemas/VideoChannelSummary'
+
     VideoChannelSummary:
       properties:
         id:
@@ -9916,6 +10611,29 @@ components:
           type: integer
         nsfw:
           type: boolean
+    ChangeOwnership:
+      type: object
+      description: Representation of a ownership change
+      properties:
+        id:
+          $ref: '#/components/schemas/id'
+        state:
+          properties:
+            id:
+              $ref: '#/components/schemas/ChangeOwnershipState'
+            label:
+              type: string
+        initiatorAccount:
+          $ref: '#/components/schemas/Account'
+        nextOwnerAccount:
+          $ref: '#/components/schemas/Account'
+        video:
+          $ref: '#/components/schemas/VideoSummary'
+        videoChannel:
+          $ref: '#/components/schemas/VideoChannelSummary'
+        createdAt:
+          type: string
+          format: date-time
     VideoPlaylist:
       properties:
         id:
@@ -9949,7 +10667,7 @@ components:
           deprecated: true
           type: string
         thumbnails:
-          description: "**PeerTube >= 8.1** Array of thumbnails for the video"
+          description: "**PeerTube >= 8.1** Array of thumbnails for the playlist"
           type: array
           items:
             $ref: '#/components/schemas/Thumbnail'
@@ -10683,6 +11401,9 @@ components:
         totalLocalVideoViews:
           type: number
           description: Total video views made on the instance
+        totalLocalVideoDownloads:
+          type: number
+          description: Total video downloads made on the instance
         totalLocalVideoComments:
           type: number
           description: Total comments made by local users
@@ -11130,7 +11851,7 @@ components:
             - video-transcoding
             - email
             - video-import
-            - videos-views-stats
+            - videos-stats
             - activitypub-refresher
             - video-redundancy
             - video-channel-import
@@ -11835,6 +12556,22 @@ components:
       required:
         - moderationResponse
 
+    UserRegistrationState:
+      type: integer
+      enum:
+        - 1
+        - 2
+        - 3
+      description: 'The registration state (Pending = `1`, Rejected = `2`, Accepted = `3`)'
+
+    ChangeOwnershipState:
+      type: integer
+      enum:
+        - 1
+        - 2
+        - 3
+      description: 'The ownership change state (Pending = `1`, Rejected = `2`, Accepted = `3`)'
+
     UserRegistration:
       properties:
         id:
@@ -11843,12 +12580,7 @@ components:
           type: object
           properties:
             id:
-              type: integer
-              enum:
-                - 1
-                - 2
-                - 3
-              description: 'The registration state (Pending = `1`, Rejected = `2`, Accepted = `3`)'
+              $ref: '#/components/schemas/UserRegistrationState'
             label:
               type: string
         registrationReason:
@@ -12290,6 +13022,15 @@ components:
         - 20
         - 21
         - 22
+        - 23
+        - 24
+        - 25
+        - 26
+        - 27
+        - 28
+        - 29
+        - 30
+        - 31
       description: >
         Notification type. One of the following values:
 
@@ -12336,6 +13077,24 @@ components:
           - `21` NEW_LIVE_FROM_SUBSCRIPTION
 
           - `22` MY_VIDEO_TRANSCRIPTION_GENERATED
+
+          - `23` INVITED_TO_COLLABORATE_TO_CHANNEL
+
+          - `24` ACCEPTED_TO_COLLABORATE_TO_CHANNEL
+
+          - `25` REFUSED_TO_COLLABORATE_TO_CHANNEL
+
+          - `26` VIDEO_OWNERSHIP_CHANGED_REQUEST
+
+          - `27` VIDEO_OWNERSHIP_CHANGED_ACCEPTED
+
+          - `28` VIDEO_OWNERSHIP_CHANGED_REJECTED
+
+          - `29` CHANNEL_OWNERSHIP_CHANGED_REQUEST
+
+          - `30` CHANNEL_OWNERSHIP_CHANGED_ACCEPTED
+
+          - `31` CHANNEL_OWNERSHIP_CHANGED_REJECTED
 
     NewFeatureInfoType:
       type: integer
@@ -12673,6 +13432,34 @@ components:
                   file:
                     type: string
                     format: binary
+          -
+            title: remove-segments
+            type: object
+            properties:
+              name:
+                type: string
+                enum:
+                  - 'remove-segments'
+              options:
+                type: object
+                required:
+                  - segments
+                properties:
+                  segments:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      required:
+                        - start
+                        - end
+                      properties:
+                        start:
+                          type: integer
+                          minimum: 0
+                        end:
+                          type: integer
+                          minimum: 1
 
     LiveVideoSessionResponse:
       properties:

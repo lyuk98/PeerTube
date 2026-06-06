@@ -12,7 +12,7 @@ It can be launched from a remote server/computer to easily upload videos, manage
 Ensure you have `node` installed on your system:
 
 ```bash
-node --version # Should be >= 20.x
+node --version # Should be >= 22.x
 ```
 
 Then install the CLI:
@@ -143,7 +143,7 @@ You can read the admin documentation on how to use PeerTube runners on https://d
 Ensure you have `node`, `ffmpeg` and `ffprobe` installed on your system:
 
 ```bash
-node --version # Should be >= 20.x
+node --version # Should be >= 22.x
 ffprobe -version # Should be >= 4.3
 ffmpeg -version # Should be >= 4.3
 ```
@@ -491,9 +491,9 @@ cd /var/www/peertube-docker; \
 
 :::
 
-### Regenerate video thumbnails
+### Regenerate video and playlist thumbnails
 
-Regenerating local video thumbnails could be useful because new PeerTube releases may increase thumbnail sizes:
+Regenerating local video and playlist thumbnails could be useful because new PeerTube releases may increase thumbnail sizes:
 
 ::: code-group
 
@@ -602,7 +602,9 @@ cd /var/www/peertube-docker; \
 
 **PeerTube >= 6.2**
 
-Use this script to recover disk space by removing remote files (thumbnails, avatars...) that can be re-fetched later by your PeerTube instance on-demand:
+Use this script to recover disk space by removing remote files (thumbnails, avatars...) that can be re-fetched later by your PeerTube instance on-demand.
+
+Restart PeerTube after running this script.
 
 ::: code-group
 
@@ -673,6 +675,7 @@ cd /var/www/peertube-docker; \
 ```
 
 :::
+
 
 ### Update PeerTube instance domain name
 

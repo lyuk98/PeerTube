@@ -7,18 +7,7 @@ import {
   MVideoLiveWithSettingSchedules
 } from '@server/types/models/index.js'
 import { Transaction } from 'sequelize'
-import {
-  AllowNull,
-  BeforeDestroy,
-  BelongsTo,
-  Column,
-  CreatedAt,
-  DataType,
-  ForeignKey,
-  HasMany,
-  Table,
-  UpdatedAt
-} from 'sequelize-typescript'
+import { AllowNull, BeforeDestroy, BelongsTo, Column, CreatedAt, ForeignKey, HasMany, Table, UpdatedAt } from 'sequelize-typescript'
 import { SequelizeModel } from '../shared/index.js'
 import { VideoBlacklistModel } from './video-blacklist.js'
 import { VideoLiveReplaySettingModel } from './video-live-replay-setting.js'
@@ -40,7 +29,7 @@ import { VideoModel } from './video.js'
 })
 export class VideoLiveModel extends SequelizeModel<VideoLiveModel> {
   @AllowNull(true)
-  @Column(DataType.STRING)
+  @Column
   declare streamKey: string
 
   @AllowNull(false)
@@ -54,6 +43,11 @@ export class VideoLiveModel extends SequelizeModel<VideoLiveModel> {
   @AllowNull(false)
   @Column
   declare latencyMode: LiveVideoLatencyModeType
+
+  // 0 if DVR is disabled, otherwise the DVR window in seconds
+  @AllowNull(false)
+  @Column
+  declare dvrWindow: number
 
   @CreatedAt
   declare createdAt: Date
@@ -163,12 +157,15 @@ export class VideoLiveModel extends SequelizeModel<VideoLiveModel> {
     return VideoLiveModel.findOne<MVideoLiveVideoWithSettingSchedules>(query)
   }
 
-  toFormattedJSON (this: MVideoLiveWithSettingSchedules, canSeePrivateInformation: boolean): LiveVideo {
+  toFormattedJSON (this: MVideoLiveWithSettingSchedules, options: {
+    canSeePrivateInformation: boolean
+    isLocal: boolean
+  }): LiveVideo {
     let privateInformation: Pick<LiveVideo, 'rtmpUrl' | 'rtmpsUrl' | 'streamKey'> | {} = {}
 
     // If we don't have a stream key, it means this is a remote live so we don't specify the rtmp URL
     // We also display these private information only to the live owne/moderators
-    if (this.streamKey && canSeePrivateInformation === true) {
+    if (this.streamKey && options.canSeePrivateInformation === true) {
       privateInformation = {
         streamKey: this.streamKey,
 
@@ -193,6 +190,9 @@ export class VideoLiveModel extends SequelizeModel<VideoLiveModel> {
       saveReplay: this.saveReplay,
       replaySettings,
       latencyMode: this.latencyMode,
+      dvrWindow: options.isLocal
+        ? Math.min(this.dvrWindow, CONFIG.LIVE.DVR.MAX_WINDOW)
+        : this.dvrWindow,
       schedules: (this.LiveSchedules || []).map(schedule => schedule.toFormattedJSON())
     }
   }

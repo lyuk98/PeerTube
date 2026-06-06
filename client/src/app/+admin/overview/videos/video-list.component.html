@@ -10,21 +10,23 @@
   [dataLoader]="dataLoader"
   (rowExpand)="onRowExpand($event)"
   columnConfig="false"
+  refreshButton="true"
+  searchInput="true"
+  [inputFilters]="inputFilters"
+  [defaultInputFilterValues]="defaultInputFilterValues"
+  (dataLoaded)="onDataLoaded()"
   >
 
   <ng-template #totalTitle let-totalRecords>
     <ng-container i18n>{ totalRecords, plural, =0 {No videos} =1 {1 video} other {{{ totalRecords | myNumberFormatter }} videos}}</ng-container>
   </ng-template>
 
-  <ng-template #captionRight>
-    <my-advanced-input-filter [filters]="inputFilters" (search)="table.onSearch($event)"></my-advanced-input-filter>
-
-    <my-button i18n-label label="Refresh" icon="refresh" (click)="table.loadData()"></my-button>
-  </ng-template>
-
   <ng-template #tableCells let-video>
     <td>
-      <my-video-cell [video]="video" size="small"></my-video-cell>
+      <my-video-cell
+        [video]="video" [accountBlockBadges]="accountBlocklist.get(video.account.id)"
+        accountBlockBadgesPlatformOnly="true" size="small"
+      ></my-video-cell>
     </td>
 
     <td>
@@ -40,14 +42,7 @@
         <my-video-nsfw-badge [video]="video" theme="red"></my-video-nsfw-badge>
 
         @if (isUnpublished(video)) {
-          <span class="pt-badge badge-yellow">{{ video.state.label }}</span>
-        }
-
-        @if (isAccountBlocked(video)) {
-          <span class="pt-badge badge-red" i18n>Account muted</span>
-        }
-        @if (isServerBlocked(video)) {
-          <span class="pt-badge badge-red" i18n>Server muted</span>
+          <span [class]="getVideoStateBadgeClass(video.state.id)">{{ video.state.label }}</span>
         }
 
         @if (isVideoBlocked(video)) {
@@ -60,7 +55,7 @@
           <a
             i18n-title title="Only display videos with this tag"
             class="pt-badge badge-secondary me-1"
-            [routerLink]="[ '.' ]" [queryParams]="{ 'search': buildSearchAutoTag(tag) }"
+            [routerLink]="[ '.' ]" [queryParams]="{ 'autoTagOneOf': tag }" queryParamsHandling="merge"
           >{{ tag }}</a>
         }
       </div>
@@ -95,8 +90,10 @@
 
   <ng-template #actionCell let-video>
     <my-video-actions-dropdown
-      placement="bottom auto" buttonIcon="more-horizontal" buttonStyled="true" [video]="video" [displayOptions]="videoActionsOptions"
+      placement="bottom auto" buttonIcon="more-horizontal" buttonStyled="true" [video]="video"
+      [displayOptions]="videoActionsOptions" [muteStatus]="accountBlocklist.get(video.account.id)"
       (videoRemoved)="table.loadData()" (videoFilesRemoved)="table.loadData()" (transcodingCreated)="table.loadData()"
+      (muted)="loadBlockStatus()" (unmuted)="loadBlockStatus()"
     ></my-video-actions-dropdown>
   </ng-template>
 
@@ -164,8 +161,8 @@
     </div>
   </ng-template>
 
-  <ng-template #noResults let-search>
-    @if (search) {
+  <ng-template #noResults let-search="search" let-hasFilters="hasFilters">
+    @if (search || hasFilters) {
       <ng-container i18n>No videos found matching current filters.</ng-container>
     } @else {
       <ng-container i18n>Your platform doesn't have videos.</ng-container>

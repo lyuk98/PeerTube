@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import { wait } from '@peertube/peertube-core-utils'
 import { hasAudioStream, hasVideoStream } from '@peertube/peertube-ffmpeg'
@@ -53,7 +53,7 @@ import {
   probeZIPFile,
   regenerateExport
 } from '@tests/shared/import-export.js'
-import { MockSmtpServer } from '@tests/shared/mock-servers/index.js'
+import { MockSmtpServer } from '@tests/shared/mock-servers/mock-email.js'
 import { expect } from 'chai'
 
 function runTest (withObjectStorage: boolean) {
@@ -578,6 +578,7 @@ function runTest (withObjectStorage: boolean) {
         expect(liveVideo.live.saveReplay).to.be.true
         expect(liveVideo.live.permanentLive).to.be.true
         expect(liveVideo.live.streamKey).to.exist
+        expect(liveVideo.live.dvrWindow).to.equal(15)
         expect(liveVideo.live.replaySettings.privacy).to.equal(VideoPrivacy.PUBLIC)
         expect(liveVideo.live.schedules).to.have.lengthOf(1)
         expect(liveVideo.live.schedules[0].startAt).to.exist

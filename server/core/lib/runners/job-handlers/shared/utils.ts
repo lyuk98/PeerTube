@@ -7,12 +7,12 @@ import { logger, LoggerTagsFn } from '@server/helpers/logger.js'
 import { onTranscodingEnded } from '@server/lib/transcoding/ended-transcoding.js'
 import { onWebVideoFileTranscoding } from '@server/lib/transcoding/web-transcoding.js'
 import { VideoModel } from '@server/models/video/video.js'
-import { MVideoFullLight } from '@server/types/models/index.js'
+import { MVideoFull } from '@server/types/models/index.js'
 import { MRunnerJob } from '@server/types/models/runners/index.js'
 import { Transaction } from 'sequelize'
 
 export async function onVODWebVideoOrAudioMergeTranscodingJob (options: {
-  video: MVideoFullLight
+  video: MVideoFull
   videoFilePath: string
   privatePayload: RunnerJobVODWebVideoTranscodingPrivatePayload | RunnerJobVODAudioMergeTranscodingPrivatePayload
   wasAudioFile: boolean

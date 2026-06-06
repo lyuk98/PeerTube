@@ -29,14 +29,13 @@ import { buildNextVideoState } from '@server/lib/video-state.js'
 import { createTorrentAndSetInfoHash, downloadWebTorrentVideo } from '@server/lib/webtorrent.js'
 import { UserModel } from '@server/models/user/user.js'
 import { VideoCaptionModel } from '@server/models/video/video-caption.js'
-import { MUserId, MVideoFile, MVideoFullLight } from '@server/types/models/index.js'
+import { MUserId, MVideoFile, MVideoFull } from '@server/types/models/index.js'
 import { MVideoImport, MVideoImportDefault, MVideoImportDefaultFiles, MVideoImportVideo } from '@server/types/models/video/video-import.js'
 import { Job } from 'bullmq'
 import { FfprobeData } from 'fluent-ffmpeg'
 import { move, remove } from 'fs-extra/esm'
 import { stat } from 'fs/promises'
 import { logger } from '../../../helpers/logger.js'
-import { getSecureTorrentName } from '../../../helpers/utils.js'
 import { CONSTRAINTS_FIELDS, JOB_TTL } from '../../../initializers/constants.js'
 import { sequelizeTypescript } from '../../../initializers/database.js'
 import { VideoFileModel } from '../../../models/video/video-file.js'
@@ -92,18 +91,11 @@ export {
 async function processTorrentImport (job: Job, videoImport: MVideoImportDefault, payload: VideoImportTorrentPayload) {
   logger.info('Processing torrent video import in job %s.', job.id)
 
-  const target = {
-    torrentName: videoImport.torrentName
-      ? getSecureTorrentName(videoImport.torrentName)
-      : undefined,
-    uri: videoImport.magnetUri
-  }
-
   const user = await UserModel.loadByVideoId(videoImport.videoId)
   if (!user) throw new Error('Video does not exist anymore')
 
   return processFile({
-    downloader: () => downloadWebTorrentVideo(target, JOB_TTL['video-import']),
+    downloader: () => downloadWebTorrentVideo({ torrentPath: payload.torrentPath, uri: videoImport.magnetUri }, JOB_TTL['video-import']),
     videoImport,
     type: payload.type,
     generateTranscription: payload.generateTranscription,
@@ -169,6 +161,7 @@ async function processFile (options: {
 
     // Get information about this video
     const stats = await stat(tmpVideoPath)
+    if (!user) throw new Error('Video does not exist anymore')
 
     const isAble = await isUserQuotaValid({ channelUserId: user.id, uploadSize: stats.size })
     if (isAble === false) {
@@ -303,7 +296,7 @@ async function generateThumbnails (options: {
 
 async function afterImportSuccess (options: {
   videoImport: MVideoImport
-  video: MVideoFullLight
+  video: MVideoFull
   videoFile: MVideoFile
   user: MUserId
 

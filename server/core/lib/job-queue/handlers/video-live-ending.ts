@@ -38,9 +38,8 @@ import {
   MVideoLive,
   MVideoLiveSession,
   MVideoTag,
-  MVideoThumbnail,
-  MVideoWithAllFiles,
-  MVideoWithFileThumbnail
+  MVideoThumbnails,
+  MVideoWithAllFiles
 } from '@server/types/models/index.js'
 import { Job } from 'bullmq'
 import { pathExists, remove } from 'fs-extra/esm'
@@ -59,7 +58,7 @@ export async function processVideoLiveEnding (job: Job) {
     logger.warn('Video live %d does not exist anymore. Cannot process live ending.', payload.videoId, lTags())
   }
 
-  const video = await VideoModel.load(payload.videoId)
+  const video = await VideoModel.loadWithThumbnails(payload.videoId)
   const live = await VideoLiveModel.loadByVideoId(payload.videoId)
   const liveSession = await VideoLiveSessionModel.load(payload.liveSessionId)
 
@@ -121,7 +120,7 @@ export async function processVideoLiveEnding (job: Job) {
 // ---------------------------------------------------------------------------
 
 async function saveReplayToExternalVideo (options: {
-  liveVideo: MVideoThumbnail
+  liveVideo: MVideoThumbnails
   liveSession: MVideoLiveSession
   publishedAt: string
   replayDirectory: string
@@ -130,6 +129,16 @@ async function saveReplayToExternalVideo (options: {
 
   const liveVideo = await VideoModel.loadFull(options.liveVideo.id)
   const replaySettings = await VideoLiveReplaySettingModel.load(liveSession.replaySettingId)
+
+  if (!liveVideo || !replaySettings) {
+    logger.warn(
+      'Live video %d or its replay settings %d do not exist anymore, skipping external replay creation.',
+      options.liveVideo.id,
+      liveSession.replaySettingId,
+      lTags()
+    )
+    return
+  }
 
   const videoNameSuffix = ` - ${new Date(publishedAt).toLocaleString()}`
   const truncatedVideoName = peertubeTruncate(liveVideo.name, {
@@ -218,8 +227,8 @@ async function saveReplayToExternalVideo (options: {
 }
 
 async function copyOrRegenerateThumbnails (options: {
-  liveVideo: MVideoThumbnail
-  replayVideo: MVideoWithFileThumbnail
+  liveVideo: MVideoThumbnails
+  replayVideo: MVideoWithAllFiles
 }) {
   const { liveVideo, replayVideo } = options
 
@@ -256,6 +265,17 @@ async function replaceLiveByReplay (options: {
 
   const replaySettings = await VideoLiveReplaySettingModel.load(liveSession.replaySettingId)
   const videoWithFiles = await VideoModel.loadFull(liveVideo.id)
+
+  if (!videoWithFiles || !replaySettings) {
+    logger.warn(
+      'Live video %d or its replay settings %d do not exist anymore, skipping live-to-replay replacement.',
+      liveVideo.id,
+      liveSession.replaySettingId,
+      lTags()
+    )
+    return
+  }
+
   const hlsPlaylist = videoWithFiles.getHLSPlaylist()
   const replayInAnotherDirectory = isVideoInPublicDirectory(liveVideo.privacy) !== isVideoInPublicDirectory(replaySettings.privacy)
 
@@ -337,6 +357,7 @@ async function assignReplayFilesToVideo (options: {
       await generateHlsPlaylistResolutionFromTS({
         video,
         inputFileMutexReleaser: null, // Already locked in parent
+        preventInputFileLocking: true,
         concatenatedTsFilePath,
         resolution,
         fps,

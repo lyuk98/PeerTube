@@ -1,8 +1,8 @@
 import { FollowState } from '../actors/index.js'
+import { ConstantLabel } from '../common/constant-label.model.js'
 import { AbuseStateType } from '../moderation/index.js'
 import { PluginType_Type } from '../plugins/index.js'
-import { VideoChannelCollaboratorStateType } from '../videos/index.js'
-import { ConstantLabel } from '../common/constant-label.model.js'
+import { ChangeOwnershipStateType, VideoChannelCollaboratorStateType } from '../videos/index.js'
 import { VideoStateType } from '../videos/video-state.enum.js'
 import { UserNotificationData } from './user-notification-data.model.js'
 
@@ -46,7 +46,15 @@ export const UserNotificationType = {
 
   INVITED_TO_COLLABORATE_TO_CHANNEL: 23,
   ACCEPTED_TO_COLLABORATE_TO_CHANNEL: 24,
-  REFUSED_TO_COLLABORATE_TO_CHANNEL: 25
+  REFUSED_TO_COLLABORATE_TO_CHANNEL: 25,
+
+  VIDEO_OWNERSHIP_CHANGED_REQUEST: 26,
+  VIDEO_OWNERSHIP_CHANGED_ACCEPTED: 27,
+  VIDEO_OWNERSHIP_CHANGED_REJECTED: 28,
+
+  CHANNEL_OWNERSHIP_CHANGED_REQUEST: 29,
+  CHANNEL_OWNERSHIP_CHANGED_ACCEPTED: 30,
+  CHANNEL_OWNERSHIP_CHANGED_REJECTED: 31
 } as const
 
 export type UserNotificationType_Type = typeof UserNotificationType[keyof typeof UserNotificationType]
@@ -168,6 +176,18 @@ export interface UserNotification {
     channel: ActorInfo
     channelOwner: ActorInfo
     account: ActorInfo
+  }
+
+  changeOwnership?: {
+    id: number
+
+    state: ConstantLabel<ChangeOwnershipStateType>
+
+    initiatorAccount: ActorInfo
+    nextOwnerAccount: ActorInfo
+
+    video: VideoInfo
+    channel: ActorInfo
   }
 
   createdAt: string

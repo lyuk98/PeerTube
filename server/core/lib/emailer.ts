@@ -397,10 +397,9 @@ export class Emailer {
           text: options.text,
           subject,
           signature: this.buildSignature(),
-          fg: CONFIG.THEME.CUSTOMIZATION.FOREGROUND_COLOR || '#000',
-          bg: CONFIG.THEME.CUSTOMIZATION.BACKGROUND_COLOR || '#fff',
-          primary: CONFIG.THEME.CUSTOMIZATION.PRIMARY_COLOR || '#FF8F37',
-          onPrimary: CONFIG.THEME.CUSTOMIZATION.ON_PRIMARY_COLOR || '#000',
+
+          ...this.buildEmailTheme(),
+
           language: to.language,
           logoUrl: ServerConfigManager.Instance.getLogoUrl(await getServerActor(), 192)
         }
@@ -421,7 +420,7 @@ export class Emailer {
     }
 
     if (errors.length !== 0) {
-      const err = new Error('Some errors when sent emails') as Error & { errors: Error[] }
+      const err = new Error('Some errors when sent emails: ' + errors.map(e => e.message).join(', ')) as Error & { errors: Error[] }
       err.errors = errors
 
       throw err
@@ -511,6 +510,38 @@ export class Emailer {
 
       return toSafeMailHtml(result)
     })
+  }
+
+  private buildEmailTheme () {
+    const defaultColorsLight = {
+      fg: '#060404',
+      bg: '#f4f4f5',
+      primary: '#FF8F37',
+      onPrimary: '#060404'
+    }
+
+    const defaultColorsDark = {
+      fg: '#f6f4f4',
+      bg: '#140f0f',
+      primary: '#FD9C50',
+      onPrimary: '#111'
+    }
+
+    // Use default colors, because the admin may have used custom color on a non-peertube-core theme, which would make the email unreadable
+    if (CONFIG.THEME.DEFAULT !== 'peertube-core-dark-brown' && CONFIG.THEME.DEFAULT !== 'peertube-core-light-beige') {
+      return defaultColorsLight
+    }
+
+    const defaultColors = CONFIG.THEME.DEFAULT === 'peertube-core-dark-brown'
+      ? defaultColorsDark
+      : defaultColorsLight
+
+    return {
+      fg: CONFIG.THEME.CUSTOMIZATION.FOREGROUND_COLOR || defaultColors.fg,
+      bg: CONFIG.THEME.CUSTOMIZATION.BACKGROUND_COLOR || defaultColors.bg,
+      primary: CONFIG.THEME.CUSTOMIZATION.PRIMARY_COLOR || defaultColors.primary,
+      onPrimary: CONFIG.THEME.CUSTOMIZATION.ON_PRIMARY_COLOR || defaultColors.onPrimary
+    }
   }
 
   static get Instance () {

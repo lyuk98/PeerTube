@@ -21,7 +21,7 @@ import {
   MStreamingPlaylist,
   MUserAccountUrl,
   MUserExport,
-  MVideoChangeOwnershipFull,
+  MChangeOwnershipFull,
   MVideoEmbedDomain,
   MVideoFile,
   MVideoFormattableDetails,
@@ -32,7 +32,9 @@ import {
   MVideoPassword,
   MVideoPlaylistFull,
   MVideoPlaylistFullSummary,
-  MVideoThumbnailBlacklist,
+  MVideoThumbnails,
+  MVideoWithBlacklist,
+  MVideoWithRights,
   MWatchedWordsList
 } from '@server/types/models/index.js'
 import { MOAuthToken, MOAuthTokenUser } from '@server/types/models/oauth/oauth-token.js'
@@ -55,12 +57,13 @@ import {
   MUserDefault,
   MVideoBlacklist,
   MVideoCaptionVideo,
-  MVideoFullLight,
+  MVideoFull,
   MVideoRedundancyVideo,
   MVideoShareActor
 } from './models/index.js'
 import { MRunner, MRunnerJobRunner, MRunnerRegistrationToken } from './models/runners/index.js'
 import { MVideoSource } from './models/video/video-source.js'
+import { SignupMode } from '@server/lib/signup.ts'
 
 declare module 'express' {
   export interface Request {
@@ -129,6 +132,8 @@ declare module 'express' {
     }) => void
 
     locals: {
+      signupMode?: SignupMode
+
       requestStart: number
 
       apicacheGroups: string[]
@@ -147,9 +152,11 @@ declare module 'express' {
       ffprobe?: FfprobeData
 
       videoAPI?: MVideoFormattableDetails
-      videoAll?: MVideoFullLight
-      onlyImmutableVideo?: MVideoImmutable
-      onlyVideo?: MVideoThumbnailBlacklist
+      videoFull?: MVideoFull
+      videoImmutable?: MVideoImmutable
+      videoWithBlacklist?: MVideoWithBlacklist
+      videoWithRights?: MVideoWithRights
+      videoThumbnails?: MVideoThumbnails
       videoId?: MVideoId
 
       videoLive?: MVideoLiveWithSettingSchedules
@@ -200,8 +207,8 @@ declare module 'express' {
       follow?: MActorFollowActorsDefault
       subscription?: MActorFollowActorsDefaultSubscription
 
-      videoChangeOwnership?: MVideoChangeOwnershipFull
-      videoChangeOwnershipNextOwner?: MAccountDefault
+      changeOwnership?: MChangeOwnershipFull
+      changeOwnershipNextOwner?: MAccountDefault
 
       videoEmbedDomain?: MVideoEmbedDomain
 

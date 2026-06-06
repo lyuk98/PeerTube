@@ -351,7 +351,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
     forkJoin([
       this.serverService.getConfig().pipe(first()),
-      this.instanceService.getAbout().pipe(first())
+      this.instanceService.getAboutWithCache().pipe(first())
     ]).subscribe(([ config, about ]) => {
       const instanceConfigWarningModalValue = this.instanceConfigWarningModal()
       if (instanceConfigWarningModalValue.shouldAutoOpen(config, about)) {
@@ -393,8 +393,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         return false
       }, $localize`Go to the "Browse videos" page`),
 
-      new Hotkey('g u', () => {
-        this.router.navigate([ '/videos/upload' ])
+      new Hotkey('g p', () => {
+        this.router.navigate([ '/videos/publish' ])
         return false
       }, $localize`Go to the "Publish video" page`),
 

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import { maxBy, wait } from '@peertube/peertube-core-utils'
 import { HttpStatusCode, VideoCommentPolicy, VideoCommentThreadTree, VideoPrivacy } from '@peertube/peertube-models'
@@ -530,7 +530,7 @@ describe('Test multiple servers', function () {
       await waitJobs(servers)
 
       for (const server of servers) {
-        await server.debug.sendCommand({ body: { command: 'process-video-views-buffer' } })
+        await server.debug.sendCommand({ body: { command: 'process-video-stats-buffer' } })
       }
 
       await waitJobs(servers)
@@ -566,7 +566,7 @@ describe('Test multiple servers', function () {
       await waitJobs(servers)
 
       for (const server of servers) {
-        await server.debug.sendCommand({ body: { command: 'process-video-views-buffer' } })
+        await server.debug.sendCommand({ body: { command: 'process-video-stats-buffer' } })
       }
 
       await waitJobs(servers)

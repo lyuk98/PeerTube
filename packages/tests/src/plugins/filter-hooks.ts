@@ -1,9 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import {
   HttpStatusCode,
   MyUser,
   PeerTubeProblemDocument,
+  UserRegistrationState,
   VideoDetails,
   VideoImportState,
   VideoPlaylist,
@@ -25,7 +26,7 @@ import {
   waitJobs
 } from '@peertube/peertube-server-commands'
 import { expectEndWith } from '@tests/shared/checks.js'
-import { MockSmtpServer } from '@tests/shared/mock-servers/index.js'
+import { MockSmtpServer } from '@tests/shared/mock-servers/mock-email.js'
 import { expect } from 'chai'
 import { FIXTURE_URLS } from '../shared/fixture-urls.js'
 
@@ -70,7 +71,7 @@ describe('Test plugin filter hooks', function () {
     await servers[0].config.updateExistingConfig({
       newConfig: {
         live: { enabled: true },
-        signup: { enabled: true },
+        signup: { enabled: true, limit: -1 },
         videoFile: {
           update: {
             enabled: true
@@ -488,6 +489,27 @@ describe('Test plugin filter hooks', function () {
     })
   })
 
+  describe('Should run filter:api.user.signup.requires-approval.result', function () {
+    before(async function () {
+      await servers[0].config.updateExistingConfig({ newConfig: { signup: { requiresApproval: false } } })
+    })
+
+    it('Should require approval', async function () {
+      await servers[0].registrations.register({ username: 'waiting_john' })
+      const registrations = await servers[0].registrations.list()
+
+      expect(registrations.data[0].username).to.equal('waiting_john')
+      expect(registrations.data[0].state.id).to.equal(UserRegistrationState.PENDING)
+    })
+
+    it('Should not require approval', async function () {
+      await servers[0].registrations.register({ username: 'anybody' })
+      const users = await servers[0].users.list()
+
+      expect(users.data.map(reg => reg.username)).to.contain('anybody')
+    })
+  })
+
   describe('Should run filter:api.user.signup.allowed.result', function () {
     before(async function () {
       await servers[0].config.updateExistingConfig({ newConfig: { signup: { requiresApproval: false } } })
@@ -503,12 +525,12 @@ describe('Test plugin filter hooks', function () {
     })
 
     it('Should not allow a signup', async function () {
-      const res = await servers[0].registrations.register({
+      const body = await servers[0].registrations.register({
         username: 'jma 1',
         expectedStatus: HttpStatusCode.FORBIDDEN_403
       })
 
-      expect((res.body as PeerTubeProblemDocument).detail).to.equal('No jma 1')
+      expect((body as unknown as PeerTubeProblemDocument).detail).to.equal('No jma 1')
     })
   })
 
@@ -906,7 +928,7 @@ describe('Test plugin filter hooks', function () {
       const { total } = await servers[0].channels.list({ start: 0, count: 1 })
 
       // plugin do +1 to the total parameter
-      expect(total).to.equal(6)
+      expect(total).to.equal(7)
     })
 
     it('Should run filter:api.video-channel.get.result', async function () {
@@ -963,6 +985,16 @@ describe('Test plugin filter hooks', function () {
       const email = emails[preEmailCount]
 
       expect(email['subject']).to.contain('Custom subject')
+    })
+  })
+
+  describe('Notifications', function () {
+    it('Should run filter:notifier.notification.enabled.result', async function () {
+      await servers[0].videos.quickUpload({ name: 'notification hook video' })
+
+      await waitJobs(servers)
+
+      await servers[0].servers.waitUntilLog('Run hook filter:notifier.notification.enabled.result', 1, false)
     })
   })
 

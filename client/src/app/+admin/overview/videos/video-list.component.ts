@@ -1,5 +1,5 @@
-import { Component, OnInit, inject, viewChild } from '@angular/core'
-import { ActivatedRoute, RouterLink } from '@angular/router'
+import { Component, inject, OnInit, viewChild } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { AuthService, ConfirmService, Notifier, ServerService } from '@app/core'
 import { formatICU } from '@app/helpers'
 import { PTDatePipe } from '@app/shared/shared-main/common/date.pipe'
@@ -8,21 +8,31 @@ import { VideoDetails } from '@app/shared/shared-main/video/video-details.model'
 import { VideoFileTokenService } from '@app/shared/shared-main/video/video-file-token.service'
 import { Video } from '@app/shared/shared-main/video/video.model'
 import { VideoService } from '@app/shared/shared-main/video/video.service'
+import { AccountBlockBadgeInput } from '@app/shared/shared-moderation/account-block-badges.component'
+import { BlocklistService } from '@app/shared/shared-moderation/blocklist.service'
 import { VideoBlockComponent } from '@app/shared/shared-moderation/video-block.component'
 import { VideoBlockService } from '@app/shared/shared-moderation/video-block.service'
 import { PrivacyBadgeComponent } from '@app/shared/shared-video/privacy-badge.component'
+import { getAllVideoStates, getVideoStateBadgeClass, getVideoStateLabel } from '@app/shared/shared-video/video-state-utils'
 import { getAllFiles } from '@peertube/peertube-core-utils'
-import { FileStorage, NSFWFlag, UserRight, VideoFile, VideoState, VideoStreamingPlaylistType } from '@peertube/peertube-models'
+import {
+  FileStorage,
+  NSFWFlag,
+  UserRight,
+  VideoFile,
+  VideoState,
+  VideoStateType,
+  VideoStreamingPlaylistType
+} from '@peertube/peertube-models'
 import { videoRequiresFileToken } from '@root-helpers/video'
 import { TableRowExpandEvent } from 'primeng/table'
-import { AdvancedInputFilter, AdvancedInputFilterComponent } from '../../../shared/shared-forms/advanced-input-filter.component'
+import { AdvancedFilterDef } from '../../../shared/shared-forms/advanced-input-filter.component'
 import { GlobalIconComponent } from '../../../shared/shared-icons/global-icon.component'
 import { DropdownAction } from '../../../shared/shared-main/buttons/action-dropdown.component'
-import { ButtonComponent } from '../../../shared/shared-main/buttons/button.component'
 import { BytesPipe } from '../../../shared/shared-main/common/bytes.pipe'
 import { NumberFormatterPipe } from '../../../shared/shared-main/common/number-formatter.pipe'
 import { EmbedComponent } from '../../../shared/shared-main/video/embed.component'
-import { DataLoaderOptions, TableColumnInfo, TableComponent } from '../../../shared/shared-tables/table.component'
+import { DataLoaderOptionsBase, TableColumnInfo, TableComponent } from '../../../shared/shared-tables/table.component'
 import { VideoCellComponent } from '../../../shared/shared-tables/video-cell.component'
 import {
   VideoActionsDisplayType,
@@ -30,6 +40,8 @@ import {
 } from '../../../shared/shared-video-miniature/video-actions-dropdown.component'
 import { VideoNSFWBadgeComponent } from '../../../shared/shared-video/video-nsfw-badge.component'
 import { VideoAdminService } from './video-admin.service'
+
+type DataLoaderParameter = Parameters<VideoListComponent['_dataLoader']>[0]
 
 type ColumnName =
   | 'video'
@@ -43,8 +55,6 @@ type ColumnName =
   styleUrls: [ './video-list.component.scss' ],
   imports: [
     GlobalIconComponent,
-    AdvancedInputFilterComponent,
-    ButtonComponent,
     VideoActionsDropdownComponent,
     VideoCellComponent,
     EmbedComponent,
@@ -59,7 +69,6 @@ type ColumnName =
   ]
 })
 export class VideoListComponent implements OnInit {
-  private route = inject(ActivatedRoute)
   private confirmService = inject(ConfirmService)
   private auth = inject(AuthService)
   private notifier = inject(Notifier)
@@ -69,12 +78,15 @@ export class VideoListComponent implements OnInit {
   private videoCaptionService = inject(VideoCaptionService)
   private server = inject(ServerService)
   private videoFileTokenService = inject(VideoFileTokenService)
+  private blocklistService = inject(BlocklistService)
 
   readonly videoBlockModal = viewChild<VideoBlockComponent>('videoBlockModal')
-  readonly table = viewChild<TableComponent<Video>>('table')
+  readonly table = viewChild<TableComponent<Video, DataLoaderParameter, ColumnName>>('table')
 
   bulkActions: DropdownAction<Video[]>[][] = []
-  inputFilters: AdvancedInputFilter[]
+
+  defaultInputFilterValues: Partial<DataLoaderParameter> = {}
+  inputFilters: AdvancedFilterDef<DataLoaderParameter>[] = []
 
   videoActionsOptions: VideoActionsDisplayType = {
     playlist: false,
@@ -84,7 +96,8 @@ export class VideoListComponent implements OnInit {
     delete: true,
     report: false,
     duplicate: true,
-    mute: true,
+    muteByUser: false,
+    muteByServer: true,
     liveInfo: false,
     removeFiles: true,
     transcoding: true,
@@ -97,6 +110,9 @@ export class VideoListComponent implements OnInit {
     { id: 'localVideoFilesSize', label: $localize`Files`, sortable: true },
     { id: 'publishedAt', label: $localize`Published`, sortable: true }
   ]
+
+  // Key is account id
+  accountBlocklist = new Map<number, AccountBlockBadgeInput>()
 
   private videoFileTokens: { [videoId: number]: string } = {}
 
@@ -115,7 +131,100 @@ export class VideoListComponent implements OnInit {
   }
 
   ngOnInit () {
-    this.inputFilters = this.videoAdminService.buildAdminInputFilter()
+    this.defaultInputFilterValues = { isLocal: true }
+
+    this.inputFilters = [
+      {
+        type: 'options',
+        key: 'isLocal',
+        title: $localize`Videos scope`,
+        options: [
+          { value: 'all', label: $localize`All` },
+          { value: false, label: $localize`Remote videos` },
+          { value: true, label: $localize`Local videos` }
+        ]
+      },
+
+      {
+        type: 'options',
+        key: 'nsfw',
+        title: $localize`Sensitive videos`,
+        options: [
+          { value: 'all', label: $localize`All` },
+          { value: 'true', label: $localize`Sensitive` },
+          { value: 'false', label: $localize`Non sensitive` }
+        ]
+      },
+
+      {
+        type: 'title',
+        title: $localize`Moderation`
+      },
+
+      {
+        type: 'checkbox',
+        key: 'excludeMuted',
+        label: $localize`Exclude muted accounts`
+      },
+
+      {
+        type: 'checkbox',
+        key: 'excludePublic',
+        label: $localize`Exclude public videos`
+      },
+
+      {
+        type: 'options',
+        key: 'isLive',
+        title: $localize`Video type`,
+        options: [
+          { value: 'all', label: $localize`All` },
+          { value: false, label: $localize`VOD` },
+          { value: true, label: $localize`Live` }
+        ]
+      },
+
+      {
+        type: 'select',
+        key: 'state',
+        title: $localize`Video state`,
+        clearable: true,
+        filter: true,
+        items: getAllVideoStates().map(state => ({
+          id: state + '',
+          label: getVideoStateLabel(state).toLocaleUpperCase(),
+          classes: [ 'pt-badge', getVideoStateBadgeClass(state) ]
+        }))
+      },
+
+      {
+        type: 'options',
+        key: 'hasWebVideoFiles',
+        title: $localize`Web files (local only)`,
+        options: [
+          { value: 'all', label: $localize`All` },
+          { value: true, label: $localize`With Web Videos files` },
+          { value: false, label: $localize`Without Web Videos files` }
+        ]
+      },
+
+      {
+        type: 'options',
+        key: 'hasHLSFiles',
+        title: $localize`HLS files (local only)`,
+        options: [
+          { value: 'all', label: $localize`All` },
+          { value: true, label: $localize`With HLS files` },
+          { value: false, label: $localize`Without HLS files` }
+        ]
+      },
+
+      {
+        type: 'tags',
+        key: 'autoTagOneOf',
+        title: $localize`Auto tags`
+      }
+    ]
 
     this.bulkActions = [
       [
@@ -179,14 +288,6 @@ export class VideoListComponent implements OnInit {
     return video.state.id !== VideoState.LIVE_ENDED && video.state.id !== VideoState.PUBLISHED
   }
 
-  isAccountBlocked (video: Video) {
-    return video.blockedOwner
-  }
-
-  isServerBlocked (video: Video) {
-    return video.blockedServer
-  }
-
   isVideoBlocked (video: Video) {
     return video.blacklisted
   }
@@ -234,6 +335,10 @@ export class VideoListComponent implements OnInit {
     return total
   }
 
+  getVideoStateBadgeClass (state: VideoStateType) {
+    return 'pt-badge ' + getVideoStateBadgeClass(state)
+  }
+
   async removeVideoFile (video: Video, file: VideoFile, type: 'hls' | 'web-videos') {
     const message = $localize`Are you sure you want to delete this ${file.resolution.label} file?`
     const res = await this.confirmService.confirm(message, $localize`Delete file`)
@@ -266,15 +371,6 @@ export class VideoListComponent implements OnInit {
       })
   }
 
-  buildSearchAutoTag (tag: string) {
-    const str = `autoTag:"${tag}"`
-
-    const search = this.route.snapshot.queryParams.search
-    if (search) return search + ' ' + str
-
-    return str
-  }
-
   // ---------------------------------------------------------------------------
 
   onRowExpand (event: TableRowExpandEvent) {
@@ -297,13 +393,64 @@ export class VideoListComponent implements OnInit {
 
   // ---------------------------------------------------------------------------
 
-  private _dataLoader (options: DataLoaderOptions) {
-    return this.videoAdminService.getAdminVideos({
-      ...options,
+  onDataLoaded () {
+    this.loadBlockStatus()
+  }
 
+  loadBlockStatus () {
+    const videos = this.table().data
+
+    const accounts = this.getUniqueAccounts(videos)
+    const hosts = this.getUniqueHosts(videos)
+
+    this.blocklistService.getStatus({ accounts: accounts.map(a => a.name + '@' + a.host), hosts })
+      .subscribe(status => {
+        this.accountBlocklist = new Map()
+
+        for (const a of accounts) {
+          const handle = a.name + '@' + a.host
+
+          this.accountBlocklist.set(a.id, {
+            mutedByInstance: status.accounts[handle].blockedByServer,
+            mutedServerByInstance: status.hosts[a.host].blockedByServer
+          })
+        }
+      })
+  }
+
+  private getUniqueAccounts (videos: Video[]) {
+    const accountsDone = new Set<number>()
+
+    return videos
+      .map(a => {
+        if (!a.account || accountsDone.has(a.account.id)) return null
+
+        accountsDone.add(a.account.id)
+        return a.account
+      }).filter(a => !!a)
+  }
+
+  private getUniqueHosts (videos: Video[]) {
+    return Array.from(new Set(videos.map(c => c.account.host)))
+  }
+
+  // ---------------------------------------------------------------------------
+
+  private _dataLoader (
+    options: DataLoaderOptionsBase & Partial<Parameters<VideoAdminService['listAdminVideos']>[0]> & {
+      state: VideoStateType | string
+    }
+  ) {
+    return this.videoAdminService.listAdminVideos({
       // Always list NSFW video, overriding instance/user setting
+      nsfwFlagsExcluded: NSFWFlag.NONE,
       nsfw: 'both',
-      nsfwFlagsExcluded: NSFWFlag.NONE
+
+      stateOneOf: options.state
+        ? [ options.state as VideoStateType ]
+        : undefined,
+
+      ...options
     })
   }
 
@@ -334,7 +481,7 @@ export class VideoListComponent implements OnInit {
   }
 
   private unblockVideos (videos: Video[]) {
-    this.videoBlockService.unblockVideo(videos.map(v => v.id))
+    this.videoBlockService.unblockVideos(videos.map(v => v.id))
       .subscribe({
         next: () => {
           this.notifier.success(

@@ -27,14 +27,24 @@ button {
   color: inherit;
 }
 
+.primary-button {
+  --co-fg: #{pvar(--on-primary-300)};
+  --co-active-fg: #{pvar(--on-primary)};
+}
+
+.secondary-button {
+  --co-fg: #{pvar(--fg-300)};
+  --co-active-fg: #{pvar(--fg)};
+}
+
 .dropdown-toggle {
-  color: pvar(--fg-300);
+  color: var(--co-fg);
 
   &:hover,
   &:active,
   &:focus,
   &:focus-visible {
-    color: pvar(--fg);
+    color: var(--co-active-fg);
   }
 
   &::after {
@@ -83,6 +93,7 @@ button {
 .owner-moderator-privilege {
   margin: 0 !important;
   width: 13px !important;
+  top: -1px !important;
 
-  @include margin-left(0.25rem !important);
+  @include margin-left(0.5rem !important);
 }

@@ -14,7 +14,7 @@ export type PeerTubePlayerConstructorOptions = {
 
   peertubeLink: () => boolean
 
-  playbackRate?: number | string
+  playbackRate?: number
 
   enableHotkeys: boolean
   inactivityTimeout: number
@@ -70,6 +70,8 @@ export type PeerTubePlayerLoadOptions = {
 
   liveOptions?: {
     latencyMode: LiveVideoLatencyModeType
+
+    dvrEnabled: boolean
   }
 
   videoCaptions: VideoJSCaption[]

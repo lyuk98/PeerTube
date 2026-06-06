@@ -213,6 +213,11 @@ export interface CustomConfig {
         max: number
       }
     }
+
+    dvr: {
+      // In seconds, 0 means no DVR
+      maxWindow: number
+    }
   }
 
   videoStudio: {
@@ -342,6 +347,10 @@ export interface CustomConfig {
       commentsPolicy: VideoCommentPolicyType
       privacy: VideoPrivacyType
       licence: number
+    }
+
+    live: {
+      saveReplay: boolean
     }
 
     p2p: {

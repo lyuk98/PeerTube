@@ -1,5 +1,9 @@
-import { Component, input } from '@angular/core'
+import { booleanAttribute, Component, input } from '@angular/core'
 import { Account } from '../shared-main/account/account.model'
+
+export type AccountBlockBadgeInput = Partial<
+  Pick<Account, 'mutedByUser' | 'mutedServerByUser' | 'mutedByInstance' | 'mutedServerByInstance'>
+>
 
 @Component({
   selector: 'my-account-block-badges',
@@ -8,5 +12,7 @@ import { Account } from '../shared-main/account/account.model'
   imports: []
 })
 export class AccountBlockBadgesComponent {
-  readonly account = input<Account>(undefined)
+  readonly account = input.required<AccountBlockBadgeInput>()
+
+  readonly platformOnly = input(false, { transform: booleanAttribute })
 }

@@ -116,6 +116,7 @@ export const customConfigUpdateValidator = [
 
   body('live.enabled').isBoolean(),
   body('live.allowReplay').isBoolean(),
+  body('defaults.live.saveReplay').isBoolean(),
   body('live.maxDuration').isInt(),
   body('live.maxInstanceLives').custom(isIntOrNull),
   body('live.maxUserLives').custom(isIntOrNull),
@@ -132,6 +133,7 @@ export const customConfigUpdateValidator = [
   body('live.transcoding.alwaysTranscodeOriginalResolution').isBoolean(),
   body('live.transcoding.fps.max').custom(isIntOrNull),
   body('live.transcoding.remoteRunners.enabled').isBoolean(),
+  body('live.dvr.maxWindow').custom(isIntOrNull),
 
   body('search.remoteUri.users').isBoolean(),
   body('search.remoteUri.anonymous').isBoolean(),

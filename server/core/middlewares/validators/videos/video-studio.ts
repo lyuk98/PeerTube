@@ -5,6 +5,7 @@ import {
   isStudioCutTaskValid,
   isStudioTaskAddIntroOutroValid,
   isStudioTaskAddWatermarkValid,
+  isStudioRemoveSegmentsTaskValid,
   isValidStudioTasksArray
 } from '@server/helpers/custom-validators/video-studio.js'
 import { cleanUpReqFiles } from '@server/helpers/express-utils.js'
@@ -38,7 +39,7 @@ const videoStudioAddEditionValidator = [
     const body: VideoStudioCreateEdition = req.body
     const files = req.files as Express.Multer.File[]
 
-    const video = res.locals.videoAll
+    const video = res.locals.videoFull
     const videoIsAudio = video.hasAudio() && !video.hasVideo()
 
     for (let i = 0; i < body.tasks.length; i++) {
@@ -88,8 +89,8 @@ const videoStudioAddEditionValidator = [
 
     // Try to make an approximation of bytes added by the intro/outro
     const additionalBytes = await approximateIntroOutroAdditionalSize(video, body.tasks, i => getTaskFileFromReq(files, i).path)
-    const channelUser = { id: res.locals.videoAll.VideoChannel.Account.userId }
-    if (await checkUserQuota({ channelUser, videoFileSize: additionalBytes, req, res }) === false) return cleanUpReqFiles(req)
+    const channelUser = { id: res.locals.videoFull.VideoChannel.Account.userId }
+    if (await checkUserQuota({ channelUser, uploadSize: additionalBytes, req, res }) === false) return cleanUpReqFiles(req)
 
     return next()
   }
@@ -109,7 +110,8 @@ const taskCheckers: {
   'cut': isStudioCutTaskValid,
   'add-intro': isStudioTaskAddIntroOutroValid,
   'add-outro': isStudioTaskAddIntroOutroValid,
-  'add-watermark': isStudioTaskAddWatermarkValid
+  'add-watermark': isStudioTaskAddWatermarkValid,
+  'remove-segments': isStudioRemoveSegmentsTaskValid
 }
 
 function checkTask (req: express.Request, task: VideoStudioTask, indice?: number) {

@@ -1,4 +1,4 @@
-import { pick } from '@peertube/peertube-core-utils'
+import { forceNumber, pick } from '@peertube/peertube-core-utils'
 import {
   ActivityTagObject,
   ActivityTombstoneObject,
@@ -346,6 +346,8 @@ export class VideoCommentModel extends SequelizeModel<VideoCommentModel> {
     videoId?: number
     videoChannelId?: number
     autoTagOneOf?: string[]
+
+    blockerAccountIds?: number[]
   }) {
     const queryOptions: ListVideoCommentsOptions = {
       ...pick(parameters, [
@@ -364,7 +366,8 @@ export class VideoCommentModel extends SequelizeModel<VideoCommentModel> {
         'videoAccountOwnerId',
         'videoAccountOwnerIncludeCollaborations',
         'videoChannelOwnerId',
-        'heldForReview'
+        'heldForReview',
+        'blockerAccountIds'
       ]),
 
       selectType: 'api-list',
@@ -477,7 +480,7 @@ export class VideoCommentModel extends SequelizeModel<VideoCommentModel> {
           [Op.in]: Sequelize.literal(
             '(' +
               'WITH RECURSIVE children (id, "inReplyToCommentId") AS ( ' +
-              `SELECT id, "inReplyToCommentId" FROM "videoComment" WHERE id = ${comment.id} ` +
+              `SELECT id, "inReplyToCommentId" FROM "videoComment" WHERE id = ${forceNumber(comment.id)} ` +
               'UNION ' +
               'SELECT "parent"."id", "parent"."inReplyToCommentId" FROM "videoComment" "parent" ' +
               'INNER JOIN "children" ON "children"."inReplyToCommentId" = "parent"."id"' +
@@ -671,7 +674,7 @@ export class VideoCommentModel extends SequelizeModel<VideoCommentModel> {
   }
 
   getCommentUserReviewPath () {
-    return '/my-account/videos/comments?search=heldForReview:true'
+    return '/my-account/videos/comments?isHeldForReview=true'
   }
 
   getThreadId (): number {
@@ -808,8 +811,8 @@ export class VideoCommentModel extends SequelizeModel<VideoCommentModel> {
     }
   }
 
-  private static async buildBlockerAccountIds (options: {
-    user: MUserAccountId
+  static async buildBlockerAccountIds (options: {
+    user: MUserAccountId | null
   }): Promise<number[]> {
     const { user } = options
 

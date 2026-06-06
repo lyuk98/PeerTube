@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
+/* oxlint-disable @typescript-eslint/no-unused-expressions,@typescript-eslint/require-await */
 
 import { wait } from '@peertube/peertube-core-utils'
 import {
@@ -54,7 +54,7 @@ describe('Test jobs', function () {
 
       let job = body.data[0]
       // Skip repeat jobs
-      if (job.type === 'videos-views-stats') job = body.data[1]
+      if (job.type === 'videos-stats') job = body.data[1]
 
       expect(job.state).to.equal('completed')
       expect(dateIsValid(job.createdAt as string)).to.be.true

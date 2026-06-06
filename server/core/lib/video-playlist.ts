@@ -8,12 +8,12 @@ import { copy } from 'fs-extra/esm'
 import { extname, join } from 'path'
 import { Transaction } from 'sequelize'
 import { VideoPlaylistModel } from '../models/video/video-playlist.js'
-import { MAccount, MVideoThumbnail } from '../types/models/index.js'
+import { MAccount, MVideoThumbnails } from '../types/models/index.js'
 import { MVideoPlaylistOwner, MVideoPlaylistThumbnail } from '../types/models/video/video-playlist.js'
 import { sendUpdateVideoPlaylist } from './activitypub/send/send-update.js'
 import { getLocalVideoPlaylistActivityPubUrl } from './activitypub/url.js'
 import downloadImage from './image-downloader.js'
-import { createLocalPlaylistThumbnailFromImage } from './thumbnail.js'
+import { createLocalPlaylistThumbnailsFromImage } from './thumbnail.js'
 
 export async function createWatchLaterPlaylist (account: MAccount, t: Transaction) {
   const videoPlaylist: MVideoPlaylistOwner = new VideoPlaylistModel({
@@ -32,7 +32,7 @@ export async function createWatchLaterPlaylist (account: MAccount, t: Transactio
   return videoPlaylist
 }
 
-export async function generateThumbnailForPlaylist (videoPlaylist: MVideoPlaylistThumbnail, video: MVideoThumbnail) {
+export async function generateThumbnailForPlaylist (videoPlaylist: MVideoPlaylistThumbnail, video: MVideoThumbnails) {
   logger.info('Generating default thumbnail to playlist %s.', videoPlaylist.url)
 
   const videoThumbnail = video.getBestThumbnail('16:9')
@@ -49,24 +49,18 @@ export async function generateThumbnailForPlaylist (videoPlaylist: MVideoPlaylis
     await downloadImage({
       url: videoThumbnail.fileUrl,
       destDir: CONFIG.STORAGE.TMP_DIR,
-      destName: tmpImageName,
-      size: {
-        height: videoThumbnail.height || 280,
-        width: videoThumbnail.width || 157
-      }
+      destName: tmpImageName
     })
   }
 
-  const thumbnailModel = await createLocalPlaylistThumbnailFromImage({
+  const thumbnails = await createLocalPlaylistThumbnailsFromImage({
     inputPath: join(CONFIG.STORAGE.TMP_DIR, tmpImageName),
     playlist: videoPlaylist,
     automaticallyGenerated: true,
     keepOriginal: false
   })
 
-  thumbnailModel.videoPlaylistId = videoPlaylist.id
-
-  videoPlaylist.Thumbnail = await thumbnailModel.save()
+  await videoPlaylist.replaceAndSaveThumbnails(thumbnails, undefined)
 }
 
 export async function reorderPlaylistOrElementsPosition<T extends typeof VideoPlaylistElementModel | typeof VideoPlaylistModel> (options: {
